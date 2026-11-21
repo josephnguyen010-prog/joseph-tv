@@ -494,14 +494,36 @@
     var buttons = $('buttons');
     buttons.innerHTML = '';
     var own = Prefs.boxInput() !== 'live';
-    var defs = [[own ? 'tv' : 'live_tv', own ? boxLabel() : tr('light|Live TV')], ['hdmi', tr('HDMI Inputs')], ['settings', tr('light|Settings')]];
-    for (var b = 0; b < 3; b++) {
-      var r = el('button', 'round' + (b === 2 ? ' last' : ''), buttons);
-      startAt(r, 1596 + 88 * b);   // the buttons sit at the end edge of the screen: the right, or the left when mirrored
-      sym(defs[b][0], r);
+    // Joseph TV: the first button switches between English and Vietnamese. It shows the language it switches TO,
+    // written in that language, so anyone can read it: "VI · Tiếng Việt" while in English, "EN · English" in Vietnamese.
+    var next = otherLanguage();
+    var defs = [[null, next === 'vi' ? 'Tiếng Việt' : 'English'],
+      [own ? 'tv' : 'live_tv', own ? boxLabel() : tr('light|Live TV')], ['hdmi', tr('HDMI Inputs')], ['settings', tr('light|Settings')]];
+    for (var b = 0; b < defs.length; b++) {
+      var r = el('button', 'round' + (b === defs.length - 1 ? ' last' : '') + (b === 0 ? ' lang' : ''), buttons);
+      startAt(r, 1596 - 88 + 88 * b);   // the buttons sit at the end edge of the screen: the right, or the left when mirrored
+      if (defs[b][0]) sym(defs[b][0], r);
+      else el('span', 'code', r, next.toUpperCase());
       el('div', 'tip', r, defs[b][1]);
       hover(r, Z.TOP, 3 + b);
     }
+  }
+
+  /** Joseph TV: the language the top button switches to (Vietnamese from anything else, English from Vietnamese). */
+  function otherLanguage() {
+    return I18N.lang === 'vi' ? 'en' : 'vi';
+  }
+
+  /** Joseph TV: switches the whole home screen between English and Vietnamese, and remembers it. */
+  function toggleLanguage() {
+    Prefs.set('language', otherLanguage());
+    I18N.set(Prefs.language());
+    direction();
+    renderAll();
+    Data.refresh();   // the picks' titles and genres come in the new language
+    st.zone = Z.TOP;
+    st.top = 3;   // keep the focus on the language button, so a second press switches back
+    updateFocus();
   }
 
   function renderQuotes() {
@@ -521,7 +543,7 @@
     var holder = $('cards');
     setClass(body, 'no-picks', !list.length);
     setClass(body, 'no-key', !Data.hasKey());   // as on Android: no title or tabs that could never show anything
-    if (!Data.hasKey() && st.zone === Z.TOP && st.top < 3) st.top = 3;
+    if (!Data.hasKey() && st.zone === Z.TOP && st.top < 3) st.top = 4;   // Joseph TV: Live TV, not the language button
     var same = list.length === cards.length;
     for (var i = 0; same && i < list.length; i++) same = list[i].id === cards[i].id && list[i].backdrop === cards[i].backdrop && list[i].meta === cards[i].meta;
     if (same && holder.children.length === list.length) return;
@@ -1556,8 +1578,9 @@
     switch (st.zone) {
       case Z.TOP:
         if (st.top < 3) return;
-        if (st.top === 3) { var box2 = boxTV(); if (box2) launcher(box2.id, boxLabel())(); }
-        else if (st.top === 4) { st.zone = Z.SHELF; openDrawer(); st.drawer = firstPort(); updateFocus(); }
+        if (st.top === 3) toggleLanguage();
+        else if (st.top === 4) { var box2 = boxTV(); if (box2) launcher(box2.id, boxLabel())(); }
+        else if (st.top === 5) { st.zone = Z.SHELF; openDrawer(); st.drawer = firstPort(); updateFocus(); }
         else openSettings();
         return;
       case Z.CARDS:
@@ -1618,7 +1641,7 @@
         else if (dy > 0) { openDrawer(); return; }
         else if (dy < 0) {
           if (cards.length) { st.zone = Z.CARDS; st.card = nearest(cardNodes, centerX(tiles[st.shelf])); }
-          else { st.zone = Z.TOP; st.top = Data.hasKey() ? st.tab : 3; }
+          else { st.zone = Z.TOP; st.top = Data.hasKey() ? st.tab : 4; }   // Joseph TV: land on Live TV, so Up then OK never switches the language
         }
         break;
       case Z.CARDS:
@@ -1628,7 +1651,7 @@
         break;
       case Z.TOP:
         if (dx) {
-          st.top = Math.max(Data.hasKey() ? 0 : 3, Math.min(5, st.top + dx));   // without the picks the tabs can't hold focus
+          st.top = Math.max(Data.hasKey() ? 0 : 3, Math.min(6, st.top + dx));   // without the picks the tabs can't hold focus
           if (st.top < 3) selectTab(st.top);   // as on Apple TV: focusing a tab selects it
         } else if (dy > 0) {
           if (cards.length) { st.zone = Z.CARDS; st.card = Math.min(cards.length - 1, st.top < 3 ? 0 : cards.length - 1); }

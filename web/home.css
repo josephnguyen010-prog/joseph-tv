@@ -189,6 +189,8 @@ button { font: inherit; color: inherit; background: none; border: 0; padding: 0;
   -webkit-transition: opacity 0.14s;
   transition: opacity 0.14s;
 }
+/* Joseph TV: the language button shows letters (VI or EN) instead of an icon. */
+.round .code { position: absolute; left: 0; top: 0; width: 68px; line-height: 68px; text-align: center; font-size: 24px; font-weight: 800; letter-spacing: 1px; }
 .round.last .tip { left: auto; right: -10px; margin-left: 0; text-align: right; }
 .round.focus .tip { opacity: 1; }
 .night .round {
