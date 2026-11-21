@@ -34,8 +34,8 @@ var News = (function () {
 
   var sections = {};   // key -> {items: [...], at: time, failed: bool}
 
-  function stored(key) { try { return JSON.parse(localStorage.getItem('jtv.news.' + key)); } catch (e) { return null; } }
-  function store(key, value) { try { localStorage.setItem('jtv.news.' + key, JSON.stringify(value)); } catch (e) {} }
+  function stored(key) { try { return JSON.parse(localStorage.getItem('jtv.news2.' + key)); } catch (e) { return null; } }
+  function store(key, value) { try { localStorage.setItem('jtv.news2.' + key, JSON.stringify(value)); } catch (e) {} }
 
   function text(node) { return node ? (node.textContent || '').replace(/\s+/g, ' ').replace(/^ | $/g, '') : ''; }
 
@@ -61,16 +61,36 @@ var News = (function () {
     return m ? m[1] : '';
   }
 
+  /**
+   * The same, read from an item's raw XML: the TV's older Chromium doesn't find prefixed tags like media:thumbnail
+   * (ABC's pictures) through the DOM, so the text is the reliable source.
+   */
+  function pictureFromText(raw) {
+    var best = '', width = -1, tag, re = /<(?:media:thumbnail|media:content|enclosure)\b[^>]*>/g;
+    while ((tag = re.exec(raw))) {
+      var url = /\burl=["']([^"']+)["']/.exec(tag[0]), w = /\bwidth=["'](\d+)/.exec(tag[0]), type = /\btype=["']([^"']+)/.exec(tag[0]);
+      if (!url || (type && type[1].indexOf('image') !== 0)) continue;
+      var n = w ? parseInt(w[1], 10) : 0;
+      if (n > width && n <= 1280) { best = url[1]; width = n; }   // the widest one an old TV handles easily
+    }
+    if (best) return best.replace(/&amp;/g, '&');
+    var html = raw.replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"');
+    var m = /<img[^>]+src=["']([^"']+)["']/i.exec(html);
+    return m ? m[1].replace(/&amp;/g, '&') : '';
+  }
+
   function parse(feed, xml) {
     var doc = new DOMParser().parseFromString(xml, 'text/xml');
     var items = doc.getElementsByTagName('item'), out = [];
+    var raws = xml.split(/<item[\s>]/).slice(1);   // the same items as text, in the same order
     for (var i = 0; i < items.length && out.length < MAX; i++) {
       var title = text(items[i].getElementsByTagName('title')[0]);
       var link = text(items[i].getElementsByTagName('link')[0]);
       if (!title || !/^https?:\/\//.test(link)) continue;
       if (feed.keep && !feed.keep(link)) continue;
       var date = Date.parse(text(items[i].getElementsByTagName('pubDate')[0]));
-      out.push({title: title, link: link, image: picture(items[i]).replace(/^http:/, 'https:'),
+      var image = (raws.length === items.length ? pictureFromText(raws[i]) : '') || picture(items[i]);
+      out.push({title: title, link: link, image: image.replace(/^http:/, 'https:'),
         source: feed.source, at: isNaN(date) ? 0 : date});
     }
     return out;
