@@ -416,11 +416,11 @@
 
   // MARK: - Focus
 
-  var Z = {TOP: 'top', CARDS: 'cards', SHELF: 'shelf', DRAWER: 'drawer', APPS: 'apps', SETTINGS: 'settings', EDIT: 'edit', LANG: 'lang', CITY: 'city', KEY: 'key', ABOUT: 'about'};
-  var st = {zone: Z.SHELF, top: 0, tab: 0, card: 0, shelf: 0, drawer: 0, grid: 0, row: 0, edit: 0, lang: 0, city: 0, key: 0};
+  var Z = {TOP: 'top', CARDS: 'cards', SHELF: 'shelf', DRAWER: 'drawer', APPS: 'apps', NEWS: 'news', SETTINGS: 'settings', EDIT: 'edit', LANG: 'lang', CITY: 'city', KEY: 'key', ABOUT: 'about'};
+  var st = {zone: Z.SHELF, top: 0, tab: 0, card: 0, shelf: 0, drawer: 0, grid: 0, nsec: 0, row: 0, edit: 0, lang: 0, city: 0, key: 0};
   var cards = [];
 
-  function sheetOpen() { return st.zone === Z.APPS || st.zone === Z.SETTINGS || st.zone === Z.EDIT || st.zone === Z.LANG || st.zone === Z.CITY || st.zone === Z.KEY || st.zone === Z.ABOUT; }
+  function sheetOpen() { return st.zone === Z.NEWS || st.zone === Z.APPS || st.zone === Z.SETTINGS || st.zone === Z.EDIT || st.zone === Z.LANG || st.zone === Z.CITY || st.zone === Z.KEY || st.zone === Z.ABOUT; }
 
   function updateFocus() {
     var i, list;
@@ -450,6 +450,7 @@
     if (langHint) langHint.textContent = I18N.digits((st.lang + 1) + ' / ' + languageChoices().length) + '  ·  ' + tr('OK picks, Back cancels.');
     focusRows($('citypick'), st.city, st.zone === Z.CITY);
     focusRows($('keypick'), st.key, st.zone === Z.KEY);
+    focusNews();
     setClass(body, 'drawer-open', st.zone === Z.DRAWER);
     followSoon();
   }
@@ -497,17 +498,30 @@
     // Joseph TV: the first button switches between English and Vietnamese. It shows the language it switches TO,
     // written in that language, so anyone can read it: "VI · Tiếng Việt" while in English, "EN · English" in Vietnamese.
     var next = otherLanguage();
-    var defs = [[null, next === 'vi' ? 'Tiếng Việt' : 'English'],
-      [own ? 'tv' : 'live_tv', own ? boxLabel() : tr('light|Live TV')], ['hdmi', tr('HDMI Inputs')], ['settings', tr('light|Settings')]];
-    for (var b = 0; b < defs.length; b++) {
-      var r = el('button', 'round' + (b === defs.length - 1 ? ' last' : '') + (b === 0 ? ' lang' : ''), buttons);
-      startAt(r, 1596 - 88 + 88 * b);   // the buttons sit at the end edge of the screen: the right, or the left when mirrored
-      if (defs[b][0]) sym(defs[b][0], r);
-      else el('span', 'code', r, next.toUpperCase());
-      el('div', 'tip', r, defs[b][1]);
+    var defs = {lang: [null, next === 'vi' ? 'Tiếng Việt' : 'English'], news: [null, News.word('news')],
+      live: [own ? 'tv' : 'live_tv', own ? boxLabel() : tr('light|Live TV')], hdmi: ['hdmi', tr('HDMI Inputs')],
+      settings: ['settings', tr('light|Settings')]};
+    var n = TOP_ACTIONS.length;
+    for (var b = 0; b < n; b++) {
+      var action = TOP_ACTIONS[b], def = defs[action];
+      var r = el('button', 'round' + (b === n - 1 ? ' last' : '') + ' ' + action, buttons);
+      startAt(r, 1596 - 88 * (n - 3) + 88 * b);   // the buttons sit at the end edge of the screen: the right, or the left when mirrored
+      if (def[0]) sym(def[0], r);
+      else if (action === 'lang') el('span', 'code', r, next.toUpperCase());
+      else {
+        var icon = el('span', 'sym', r);   // the newspaper is an SVG in icons/, not one of the app's PNG symbols
+        icon.style.webkitMaskImage = icon.style.maskImage = 'url(icons/newspaper.svg)';
+      }
+      el('div', 'tip', r, def[1]);
       hover(r, Z.TOP, 3 + b);
     }
   }
+
+  /** Joseph TV: the round buttons at the top right, in order. st.top 3 is the first. */
+  var TOP_ACTIONS = ['lang', 'news', 'live', 'hdmi', 'settings'];
+  var TOP_NEWS = 3 + TOP_ACTIONS.indexOf('news');   // where Up from the apps lands
+
+  function topAction() { return TOP_ACTIONS[st.top - 3]; }
 
   /** Joseph TV: the language the top button switches to (Vietnamese from anything else, English from Vietnamese). */
   function otherLanguage() {
@@ -543,7 +557,7 @@
     var holder = $('cards');
     setClass(body, 'no-picks', !list.length);
     setClass(body, 'no-key', !Data.hasKey());   // as on Android: no title or tabs that could never show anything
-    if (!Data.hasKey() && st.zone === Z.TOP && st.top < 3) st.top = 4;   // Joseph TV: Live TV, not the language button
+    if (!Data.hasKey() && st.zone === Z.TOP && st.top < 3) st.top = TOP_NEWS;   // Joseph TV: News, not the language button
     var same = list.length === cards.length;
     for (var i = 0; same && i < list.length; i++) same = list[i].id === cards[i].id && list[i].backdrop === cards[i].backdrop && list[i].meta === cards[i].meta;
     if (same && holder.children.length === list.length) return;
@@ -889,7 +903,97 @@
     updateFocus();
   }
 
+  // MARK: - News (Joseph TV)
+
+  /*
+   * A page of headlines in three sections (news.js): ▲ ▼ move between sections, ◀ ▶ along one, OK opens the story in
+   * the TV's Internet app, Back closes the page. Each section keeps its own place.
+   */
+  var NEWS_SECTION = 380, NEWS_CARD = 362;
+  var newsSections = [], newsAt = [];
+
+  function renderNews() {
+    var sheet = $('news');
+    sheet.querySelector('h2').textContent = News.word('news');
+    sheet.querySelector('.hint').textContent = News.word('hint');
+    var holder = sheet.querySelector('.feed');
+    holder.innerHTML = '';
+    newsSections = News.list();
+    var rows = el('div', 'rows', holder);
+    for (var s = 0; s < newsSections.length; s++) {
+      var sec = newsSections[s], box = el('div', 'section', rows);
+      box.style.top = (20 + s * NEWS_SECTION) + 'px';
+      el('div', 'heading', box, sec.title);
+      var line = el('div', 'line', box);
+      if (!sec.items.length) {
+        el('div', 'empty', line, sec.failed ? News.word('failed') : News.word('loading'));
+        continue;
+      }
+      for (var i = 0; i < sec.items.length; i++) newsCard(sec.items[i], line, s, i);
+    }
+    focusNews();
+  }
+
+  function newsCard(item, line, s, i) {
+    var card = el('div', 'story', line);
+    startAt(card, 90 + i * NEWS_CARD);
+    var pic = el('div', 'pic', card);
+    if (item.image) pic.style.backgroundImage = 'url("' + item.image.replace(/"/g, '%22') + '")';
+    else el('div', 'brand', pic, item.source);
+    el('div', 'headline', card, item.title);
+    el('div', 'meta', card, item.source + (item.at ? '  ·  ' + News.age(item.at) : ''));
+    card.onmouseover = function () {
+      if (st.zone !== Z.NEWS) return;
+      st.nsec = s;
+      newsAt[s] = i;
+      updateFocus();
+    };
+    card.onclick = function () { card.onmouseover(); activate(); };
+  }
+
+  function focusNews() {
+    var sheet = $('news');
+    if (!sheet) return;
+    var rows = sheet.querySelector('.rows');
+    if (!rows) return;
+    var on = st.zone === Z.NEWS, sections = rows.children;
+    for (var s = 0; s < sections.length; s++) {
+      var cards = sections[s].querySelectorAll('.story'), at = newsAt[s] || 0;
+      for (var i = 0; i < cards.length; i++) setClass(cards[i], 'focus', on && s === st.nsec && i === at);
+      setClass(sections[s], 'current', s === st.nsec);
+      // Keep the focused story on screen: the line slides once it passes the third card.
+      var shift = Math.max(0, Math.min(cards.length - 5, at - 2)) * NEWS_CARD;
+      var line = sections[s].querySelector('.line');
+      line.style.webkitTransform = line.style.transform = 'translateX(' + (rtl ? shift : -shift) + 'px)';
+    }
+    var top = Math.max(0, st.nsec * NEWS_SECTION - 250);
+    rows.style.webkitTransform = rows.style.transform = 'translateY(' + (-top) + 'px)';
+  }
+
+  function openNews() {
+    st.zone = Z.NEWS;
+    st.nsec = st.nsec || 0;
+    renderNews();
+    setClass($('news'), 'open', true);
+    updateFocus();
+    News.refresh(function () { if ($('news').className.indexOf('open') >= 0) renderNews(); });
+  }
+
+  function moveNews(dx, dy) {
+    if (dy) st.nsec = Math.max(0, Math.min(newsSections.length - 1, st.nsec + dy));
+    else if (dx && newsSections[st.nsec]) {
+      var count = newsSections[st.nsec].items.length;
+      newsAt[st.nsec] = Math.max(0, Math.min(count - 1, (newsAt[st.nsec] || 0) + dx));
+    }
+  }
+
+  function openStory() {
+    var sec = newsSections[st.nsec], item = sec && sec.items[newsAt[st.nsec] || 0];
+    if (item) TV.openUrl(item.link);
+  }
+
   function closeSheets() {
+    setClass($('news'), 'open', false);
     setClass($('apps'), 'open', false);
     setClass($('settings'), 'open', false);
     setClass($('shelfedit'), 'open', false);
@@ -1578,9 +1682,11 @@
     switch (st.zone) {
       case Z.TOP:
         if (st.top < 3) return;
-        if (st.top === 3) toggleLanguage();
-        else if (st.top === 4) { var box2 = boxTV(); if (box2) launcher(box2.id, boxLabel())(); }
-        else if (st.top === 5) { st.zone = Z.SHELF; openDrawer(); st.drawer = firstPort(); updateFocus(); }
+        var action = topAction();
+        if (action === 'lang') toggleLanguage();
+        else if (action === 'news') openNews();
+        else if (action === 'live') { var box2 = boxTV(); if (box2) launcher(box2.id, boxLabel())(); }
+        else if (action === 'hdmi') { st.zone = Z.SHELF; openDrawer(); st.drawer = firstPort(); updateFocus(); }
         else openSettings();
         return;
       case Z.CARDS:
@@ -1591,6 +1697,9 @@
         return;
       case Z.DRAWER:
         if (drawerItems[st.drawer]) drawerItems[st.drawer].run();
+        return;
+      case Z.NEWS:
+        openStory();
         return;
       case Z.APPS:
         if (others[st.grid]) launcher(others[st.grid].id, others[st.grid].title)();
@@ -1641,7 +1750,7 @@
         else if (dy > 0) { openDrawer(); return; }
         else if (dy < 0) {
           if (cards.length) { st.zone = Z.CARDS; st.card = nearest(cardNodes, centerX(tiles[st.shelf])); }
-          else { st.zone = Z.TOP; st.top = Data.hasKey() ? st.tab : 4; }   // Joseph TV: land on Live TV, so Up then OK never switches the language
+          else { st.zone = Z.TOP; st.top = Data.hasKey() ? st.tab : TOP_NEWS; }   // Joseph TV: land on News, so Up then OK never switches the language
         }
         break;
       case Z.CARDS:
@@ -1651,7 +1760,7 @@
         break;
       case Z.TOP:
         if (dx) {
-          st.top = Math.max(Data.hasKey() ? 0 : 3, Math.min(6, st.top + dx));   // without the picks the tabs can't hold focus
+          st.top = Math.max(Data.hasKey() ? 0 : 3, Math.min(2 + TOP_ACTIONS.length, st.top + dx));   // without the picks the tabs can't hold focus
           if (st.top < 3) selectTab(st.top);   // as on Apple TV: focusing a tab selects it
         } else if (dy > 0) {
           if (cards.length) { st.zone = Z.CARDS; st.card = Math.min(cards.length - 1, st.top < 3 ? 0 : cards.length - 1); }
@@ -1661,6 +1770,9 @@
       case Z.DRAWER:
         if (dx) st.drawer = Math.max(0, Math.min(drawerItems.length - 1, st.drawer + dx));
         else if (dy < 0) { closeDrawer(); return; }
+        break;
+      case Z.NEWS:
+        moveNews(dx, dy);
         break;
       case Z.APPS:
         var g = st.grid + dx + dy * 5;
@@ -1714,7 +1826,7 @@
   /** The pointer focuses what it's over (the Magic Remote, or a mouse when previewing). */
   function hover(node, zone, index) {
     node.onmouseover = function () {
-      if (saverOn || (sheetOpen() !== (zone === Z.APPS || zone === Z.SETTINGS || zone === Z.EDIT || zone === Z.LANG || zone === Z.CITY || zone === Z.KEY || zone === Z.ABOUT))) return;
+      if (saverOn || (sheetOpen() !== (zone === Z.NEWS || zone === Z.APPS || zone === Z.SETTINGS || zone === Z.EDIT || zone === Z.LANG || zone === Z.CITY || zone === Z.KEY || zone === Z.ABOUT))) return;
       if (zone === Z.DRAWER && st.zone !== Z.DRAWER) return;
       if (zone !== Z.DRAWER && st.zone === Z.DRAWER && zone !== Z.SHELF) return;
       if (zone === Z.TOP && index < 3 && !Data.hasKey()) return;   // the tabs are hidden without the picks

@@ -709,6 +709,26 @@ var TV = (function () {
     /** Whether a pick of this service ("prime") can open on its title here: Watchmode is asked only then. */
     takesTitle: function (service) { return samsung && !!TITLE_LINKS[service]; },
 
+    /**
+     * Joseph TV: opens a web page (a news story) in the TV's own browser: on Samsung the Internet app
+     * (org.tizen.browser) with the "view" request, else whichever app answers it. done(true) once it opened.
+     */
+    openUrl: function (url, done) {
+      if (samsung) {
+        var view = function (id, otherwise) {
+          try {
+            var control = new window.tizen.ApplicationControl('http://tizen.org/appcontrol/operation/view', url, null, null, null);
+            window.tizen.application.launchAppControl(control, id, function () { if (done) done(true); }, otherwise);
+          } catch (e) {
+            otherwise();
+          }
+        };
+        view('org.tizen.browser', function () { view(null, function () { if (done) done(false); }); });
+        return;
+      }
+      try { window.open(url, '_blank'); if (done) done(true); } catch (e) { if (done) done(false); }
+    },
+
     /** Samsung: Home pressed in an app opened from here can bring Free My TV back (Home Settings > Home button). */
     canReturnHome: canReturn,
     returnHome: function (on) { back.on = canReturn && !!on; if (!back.on) stopWatch(); },
