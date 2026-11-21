@@ -119,7 +119,10 @@
     ['nfl', /nfl/, /^nfl/i, ['#013369', '#00163D']],
     ['globoplay', /globoplay/, /globoplay/i, ['#FF8A1F', '#FF2D5A']],
     ['jellyfin', /jellyfin/i, /jellyfin/i, ['#AA5CC3', '#00A4DC']],
-    ['spotify', /spotify/, /spotify/i, ['#1DB954', '#0F7A36']]
+    ['spotify', /spotify/, /spotify/i, ['#1DB954', '#0F7A36']],
+    // Joseph TV: colors instead of the plain grey tile.
+    ['internet', /^org\.tizen\.browser$|app\.browser/, /^(internet|web browser)$/i, ['#2D8CFF', '#0B47B8']],
+    ['facebook', /facebook/i, /facebook/i, ['#1877F2', '#0A3F9E']]
   ];
   // Apps shown at once, as on Android: 8 (today's smallest tiles, 178 wide); the shelf scrolls for the rest. The
   // built-in list keeps 8 too.

@@ -202,7 +202,9 @@ var TV = (function () {
     steamlink: 'icons/steam.svg', jellyfin: 'icons/jellyfin.svg', paramount: 'icons/paramountplus.svg',
     paramountplus: 'icons/paramountplus.svg', crunchyroll: 'icons/crunchyroll.svg', twitch: 'icons/twitch.svg',
     plex: 'icons/plex.svg', appletv: 'icons/appletv.svg',
-    bbciplayer: 'icons/bbciplayer.svg', channel4: 'icons/channel4.svg'
+    bbciplayer: 'icons/bbciplayer.svg', channel4: 'icons/channel4.svg',
+    // Joseph TV: the TV's Internet app and Facebook Watch, which showed only their names on grey.
+    internet: 'icons/internet.svg', facebookwatch: 'icons/facebook.svg', facebook: 'icons/facebook.svg'
   };
 
   // Names Smart Hub gets wrong: HBO's app has none (so it never reached the shelf), others are long or old.
