@@ -555,8 +555,29 @@
 
   // MARK: - Picks and background
 
+  /**
+   * Joseph TV: without movie picks (no TMDB key), the big cards show the news instead: the newest stories of each
+   * section in turn (football, politics, Vietnam, football, ...), up to 12. OK opens one in the Internet app.
+   */
+  function newsPicks() {
+    var sections = News.list(), out = [], round = 0, added = true;
+    while (added && out.length < 12) {
+      added = false;
+      for (var s = 0; s < sections.length && out.length < 12; s++) {
+        var item = sections[s].items[round];
+        if (!item) continue;
+        added = true;
+        out.push({id: item.link, news: true, link: item.link, title: item.title, backdrop: item.image, poster: '',
+          meta: sections[s].title + '  ·  ' + item.source + (item.at ? '  ·  ' + News.age(item.at) : '')});
+      }
+      round++;
+    }
+    return out;
+  }
+
   function renderCards() {
     var list = Data.picks(TAB_KIND[st.tab]);
+    if (!list.length) list = newsPicks();
     var holder = $('cards');
     setClass(body, 'no-picks', !list.length);
     setClass(body, 'no-key', !Data.hasKey());   // as on Android: no title or tabs that could never show anything
@@ -979,7 +1000,13 @@
     renderNews();
     setClass($('news'), 'open', true);
     updateFocus();
-    News.refresh(function () { if ($('news').className.indexOf('open') >= 0) renderNews(); });
+    News.refresh(newsArrived);
+  }
+
+  /** A news section arrived: the home screen's cards (when they show news) and the News page, if open. */
+  function newsArrived() {
+    renderCards();
+    if ($('news').className.indexOf('open') >= 0) renderNews();
   }
 
   function moveNews(dx, dy) {
@@ -1693,7 +1720,8 @@
         else openSettings();
         return;
       case Z.CARDS:
-        openTarget(cards[st.card], pickTarget(cards[st.card]));
+        if (cards[st.card] && cards[st.card].news) TV.openUrl(cards[st.card].link);   // Joseph TV: a news card
+        else openTarget(cards[st.card], pickTarget(cards[st.card]));
         return;
       case Z.SHELF:
         if (shelf[st.shelf]) launcher(shelf[st.shelf].id, shelf[st.shelf].title)();
@@ -1758,7 +1786,7 @@
         break;
       case Z.CARDS:
         if (dx) st.card = Math.max(0, Math.min(cards.length - 1, st.card + dx));
-        else if (dy < 0) { st.zone = Z.TOP; st.top = st.tab; }
+        else if (dy < 0) { st.zone = Z.TOP; st.top = Data.hasKey() ? st.tab : TOP_NEWS; }   // Joseph TV: the tabs are hidden without picks
         else if (shelf.length) { st.zone = Z.SHELF; st.shelf = nearest(tiles, centerX(cardNodes[st.card])); }
         break;
       case Z.TOP:
@@ -2141,11 +2169,13 @@
     renderAll();
     restInDrawer();
     Data.refresh();
+    News.refresh(newsArrived);   // Joseph TV: the news cards on the home screen
   });
   setInterval(function () {
     if (resting()) return;
     checkNight();
     Data.refresh();
+    News.refresh(newsArrived);   // fetches only sections older than 30 minutes
     applyDim();   // automatic: medium from 22:00, off again at 07:00
     // Only on screen: behind another app nobody presses our keys, so idleAt grows old and the screensaver would start
     // there, turning photos every 12 s for nothing while Netflix or YouTube plays.
