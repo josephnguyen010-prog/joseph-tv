@@ -419,11 +419,11 @@
 
   // MARK: - Focus
 
-  var Z = {TOP: 'top', CARDS: 'cards', SHELF: 'shelf', DRAWER: 'drawer', APPS: 'apps', NEWS: 'news', SETTINGS: 'settings', EDIT: 'edit', LANG: 'lang', CITY: 'city', KEY: 'key', ABOUT: 'about'};
-  var st = {zone: Z.SHELF, top: 0, tab: 0, card: 0, shelf: 0, drawer: 0, grid: 0, nsec: 0, row: 0, edit: 0, lang: 0, city: 0, key: 0};
+  var Z = {TOP: 'top', CARDS: 'cards', SHELF: 'shelf', DRAWER: 'drawer', APPS: 'apps', NEWS: 'news', FAMILY: 'family', SLIDES: 'slides', SETTINGS: 'settings', EDIT: 'edit', LANG: 'lang', CITY: 'city', KEY: 'key', ABOUT: 'about'};
+  var st = {zone: Z.SHELF, top: 0, tab: 0, card: 0, shelf: 0, drawer: 0, grid: 0, nsec: 0, fam: 0, slide: 0, row: 0, edit: 0, lang: 0, city: 0, key: 0};
   var cards = [];
 
-  function sheetOpen() { return st.zone === Z.NEWS || st.zone === Z.APPS || st.zone === Z.SETTINGS || st.zone === Z.EDIT || st.zone === Z.LANG || st.zone === Z.CITY || st.zone === Z.KEY || st.zone === Z.ABOUT; }
+  function sheetOpen() { return st.zone === Z.SLIDES || st.zone === Z.NEWS || st.zone === Z.APPS || st.zone === Z.SETTINGS || st.zone === Z.EDIT || st.zone === Z.LANG || st.zone === Z.CITY || st.zone === Z.KEY || st.zone === Z.ABOUT; }
 
   function updateFocus() {
     var i, list;
@@ -454,6 +454,7 @@
     focusRows($('citypick'), st.city, st.zone === Z.CITY);
     focusRows($('keypick'), st.key, st.zone === Z.KEY);
     focusNews();
+    focusFamily();
     setClass(body, 'drawer-open', st.zone === Z.DRAWER);
     followSoon();
   }
@@ -924,6 +925,92 @@
     st.grid = 0;
     setClass($('apps'), 'open', true);
     fitLogos($('apps'));
+    updateFocus();
+  }
+
+  // MARK: - Family photos (Joseph TV)
+
+  /*
+   * A row of family photos (photos.js, from family-photos/ on the computer) between the news and the apps. It moves on
+   * by itself every few seconds; with the focus on it, ◀ ▶ pick a photo and OK opens the full-screen slideshow
+   * (◀ ▶ there too, Back returns to the row).
+   */
+  var FAMILY_STEP = 324, FAMILY_SHOWN = 5, FAMILY_EVERY = 6000, SLIDE_EVERY = 8000;
+  var familyAuto = 0, slideFront = 'a', slideTimer = 0;
+
+  function familyPhotos() { return window.FAMILY_PHOTOS || []; }
+
+  function familyWord() { return I18N.lang === 'vi' ? 'Gia đình' : 'Family'; }
+
+  function renderFamily() {
+    var photos = familyPhotos(), box = $('family');
+    setClass(body, 'has-family', photos.length > 0);
+    box.querySelector('.label').textContent = familyWord();
+    var strip = box.querySelector('.strip');
+    strip.innerHTML = '';
+    for (var i = 0; i < photos.length; i++) {
+      var p = el('div', 'photo', strip);
+      startAt(p, 80 + i * FAMILY_STEP);
+      p.style.backgroundImage = 'url(' + photos[i].src + ')';
+      hover(p, Z.FAMILY, i);
+    }
+  }
+
+  function focusFamily() {
+    var strip = $('family').querySelector('.strip'), nodes = strip.children, n = nodes.length;
+    for (var i = 0; i < n; i++) setClass(nodes[i], 'focus', st.zone === Z.FAMILY && i === st.fam);
+    var last = Math.max(0, n - FAMILY_SHOWN);
+    var first = st.zone === Z.FAMILY ? Math.max(0, Math.min(last, st.fam - 2)) : Math.min(last, familyAuto);
+    slide(strip, -first * FAMILY_STEP);
+  }
+
+  /** Every few seconds, while nobody is on the row: the next photo slides in, and after the last, back to the first. */
+  setInterval(function () {
+    var n = familyPhotos().length;
+    if (n <= FAMILY_SHOWN || st.zone === Z.FAMILY || sheetOpen() || saverOn || document.hidden) return;
+    familyAuto = familyAuto >= n - FAMILY_SHOWN ? 0 : familyAuto + 1;
+    focusFamily();
+  }, FAMILY_EVERY);
+
+  function enterFamily() {
+    st.zone = Z.FAMILY;
+    st.fam = Math.min(familyPhotos().length - 1, familyAuto + 1);   // the photo near the middle of what shows
+  }
+
+  function openSlides(index) {
+    var photos = familyPhotos();
+    if (!photos.length) return;
+    st.zone = Z.SLIDES;
+    st.slide = index;
+    setClass($('slides'), 'open', true);
+    showSlide();
+    updateFocus();
+  }
+
+  function showSlide() {
+    var photos = familyPhotos(), sheet = $('slides');
+    if (!photos.length) return;
+    st.slide = (st.slide + photos.length) % photos.length;
+    slideFront = slideFront === 'a' ? 'b' : 'a';
+    var front = sheet.querySelector('.shot.' + slideFront), backShot = sheet.querySelector('.shot.' + (slideFront === 'a' ? 'b' : 'a'));
+    front.style.backgroundImage = 'url(' + photos[st.slide].src + ')';
+    setClass(front, 'on', true);
+    setClass(backShot, 'on', false);
+    sheet.querySelector('.count').textContent = I18N.digits((st.slide + 1) + ' / ' + photos.length);
+    clearTimeout(slideTimer);
+    slideTimer = setTimeout(function () {
+      if (st.zone !== Z.SLIDES) return;
+      st.slide++;
+      showSlide();
+    }, SLIDE_EVERY);
+  }
+
+  function closeSlides() {
+    clearTimeout(slideTimer);
+    setClass($('slides'), 'open', false);
+    st.zone = Z.FAMILY;
+    st.fam = st.slide;
+    familyAuto = Math.max(0, st.fam - 2);
     updateFocus();
   }
 
@@ -1732,6 +1819,13 @@
       case Z.NEWS:
         openStory();
         return;
+      case Z.FAMILY:
+        openSlides(st.fam);
+        return;
+      case Z.SLIDES:
+        st.slide++;
+        showSlide();
+        return;
       case Z.APPS:
         if (others[st.grid]) launcher(others[st.grid].id, others[st.grid].title)();
         return;
@@ -1780,13 +1874,15 @@
         if (dx) st.shelf = Math.max(0, Math.min(shelf.length - 1, st.shelf + dx));
         else if (dy > 0) { openDrawer(); return; }
         else if (dy < 0) {
-          if (cards.length) { st.zone = Z.CARDS; st.card = nearest(cardNodes, centerX(tiles[st.shelf])); }
+          if (familyPhotos().length) enterFamily();   // Joseph TV: the family row sits between the apps and the news
+          else if (cards.length) { st.zone = Z.CARDS; st.card = nearest(cardNodes, centerX(tiles[st.shelf])); }
           else { st.zone = Z.TOP; st.top = Data.hasKey() ? st.tab : TOP_NEWS; }   // Joseph TV: land on News, so Up then OK never switches the language
         }
         break;
       case Z.CARDS:
         if (dx) st.card = Math.max(0, Math.min(cards.length - 1, st.card + dx));
         else if (dy < 0) { st.zone = Z.TOP; st.top = Data.hasKey() ? st.tab : TOP_NEWS; }   // Joseph TV: the tabs are hidden without picks
+        else if (familyPhotos().length) enterFamily();   // Joseph TV
         else if (shelf.length) { st.zone = Z.SHELF; st.shelf = nearest(tiles, centerX(cardNodes[st.card])); }
         break;
       case Z.TOP:
@@ -1795,6 +1891,7 @@
           if (st.top < 3) selectTab(st.top);   // as on Apple TV: focusing a tab selects it
         } else if (dy > 0) {
           if (cards.length) { st.zone = Z.CARDS; st.card = Math.min(cards.length - 1, st.top < 3 ? 0 : cards.length - 1); }
+          else if (familyPhotos().length) enterFamily();   // Joseph TV
           else st.zone = Z.SHELF;
         }
         break;
@@ -1805,6 +1902,15 @@
       case Z.NEWS:
         moveNews(dx, dy);
         break;
+      case Z.FAMILY:
+        if (dx) st.fam = Math.max(0, Math.min(familyPhotos().length - 1, st.fam + dx));
+        else if (dy > 0) { st.zone = Z.SHELF; }
+        else if (cards.length) { st.zone = Z.CARDS; }
+        else { st.zone = Z.TOP; st.top = Data.hasKey() ? st.tab : TOP_NEWS; }
+        break;
+      case Z.SLIDES:
+        if (dx) { st.slide += dx; showSlide(); }
+        return;
       case Z.APPS:
         var g = st.grid + dx + dy * 5;
         if (g >= 0 && g < others.length && (dx === 0 || Math.floor(g / 5) === Math.floor(st.grid / 5))) st.grid = g;
@@ -1848,6 +1954,8 @@
     if (st.zone === Z.CITY) { closeCities(false); return; }
     if (st.zone === Z.KEY) { if (keyAsking) askRemoveKey(false); else closeKey(); return; }
     if (st.zone === Z.ABOUT) { closeAbout(); return; }
+    if (st.zone === Z.SLIDES) { closeSlides(); return; }
+    if (st.zone === Z.FAMILY) { st.zone = Z.SHELF; updateFocus(); return; }
     if (sheetOpen()) { closeSheets(); return; }
     if (st.zone === Z.DRAWER) { closeDrawer(); return; }
     if (st.zone !== Z.SHELF && shelf.length) { st.zone = Z.SHELF; updateFocus(); return; }
@@ -1857,7 +1965,7 @@
   /** The pointer focuses what it's over (the Magic Remote, or a mouse when previewing). */
   function hover(node, zone, index) {
     node.onmouseover = function () {
-      if (saverOn || (sheetOpen() !== (zone === Z.NEWS || zone === Z.APPS || zone === Z.SETTINGS || zone === Z.EDIT || zone === Z.LANG || zone === Z.CITY || zone === Z.KEY || zone === Z.ABOUT))) return;
+      if (saverOn || (sheetOpen() !== (zone === Z.SLIDES || zone === Z.NEWS || zone === Z.APPS || zone === Z.SETTINGS || zone === Z.EDIT || zone === Z.LANG || zone === Z.CITY || zone === Z.KEY || zone === Z.ABOUT))) return;
       if (zone === Z.DRAWER && st.zone !== Z.DRAWER) return;
       if (zone !== Z.DRAWER && st.zone === Z.DRAWER && zone !== Z.SHELF) return;
       if (zone === Z.TOP && index < 3 && !Data.hasKey()) return;   // the tabs are hidden without the picks
@@ -1867,6 +1975,7 @@
       else if (zone === Z.CARDS) st.card = index;
       else if (zone === Z.SHELF) st.shelf = index;
       else if (zone === Z.DRAWER) st.drawer = index;
+      else if (zone === Z.FAMILY) st.fam = index;
       else if (zone === Z.APPS) st.grid = index;
       else if (zone === Z.SETTINGS) st.row = index;
       else if (zone === Z.EDIT) st.edit = index;
@@ -2068,6 +2177,7 @@
   function renderAll() {
     renderTop();
     renderQuotes();
+    renderFamily();   // Joseph TV
     cards = [];
     renderCards();
     renderShelf();

@@ -7,6 +7,7 @@ import json
 import os
 import re
 import shutil
+import subprocess
 import sys
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -127,6 +128,42 @@ def files(config, made_by):
         if name.endswith('.woff2'):
             with open(os.path.join(fonts, name), 'rb') as f:
                 out['fonts/' + name] = f.read()
+    family = family_photos()
+    for name, data, _, _ in family:
+        out['photos/' + name] = data
+    out['photos.js'] = ('/* Joseph TV: the family photos (family-photos/), shrunk by tools/family_photos.ps1. */\n'
+                        'window.FAMILY_PHOTOS = %s;\n'
+                        % json.dumps([{'src': 'photos/' + n, 'w': w, 'h': h} for n, _, w, h in family])).encode('utf-8')
+    return out
+
+
+FAMILY = os.path.join(ROOT, 'family-photos')
+
+
+def family_photos():
+    """Joseph TV: [(name, jpeg bytes, width, height)] from family-photos/, shrunk for the TV; [] without photos.
+    Windows only (tools/family_photos.ps1 uses Windows' own imaging); elsewhere the row stays empty."""
+    if not os.path.isdir(FAMILY) or not any(not n.startswith('.') for n in os.listdir(FAMILY)):
+        return []
+    if os.name != 'nt':
+        print('Family photos are shrunk with Windows\' imaging: build on Windows to include them.')
+        return []
+    shrunk = os.path.join(ROOT, 'out', 'family-photos')
+    run = subprocess.run(['powershell', '-NoProfile', '-ExecutionPolicy', 'Bypass', '-File',
+                          os.path.join(ROOT, 'tools', 'family_photos.ps1'), FAMILY, shrunk],
+                         capture_output=True, text=True)
+    for line in run.stderr.splitlines():
+        if line.strip():
+            print('Family photos: ' + line.strip())
+    out = []
+    for line in run.stdout.splitlines():
+        parts = line.strip().split('\t')
+        if len(parts) != 3:
+            continue
+        with open(os.path.join(shrunk, parts[0]), 'rb') as f:
+            out.append((parts[0], f.read(), int(parts[1]), int(parts[2])))
+    size = sum(len(d) for _, d, _, _ in out)
+    print('Family photos: %d, %.1f MB on the TV.' % (len(out), size / 1048576.0))
     return out
 
 

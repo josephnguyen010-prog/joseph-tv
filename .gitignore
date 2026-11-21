@@ -17,3 +17,6 @@ __pycache__/
 # macOS
 .DS_Store
 tools/.i18n-cache.json
+
+# Joseph TV: the family photos stay on this computer (and on the TV), never on GitHub
+family-photos/
