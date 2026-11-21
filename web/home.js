@@ -107,6 +107,9 @@
 
   /** Shelf apps in this order when installed, like the Android app: key, LG app id, name on the TV, brand gradient. */
   var SHELF = [
+    // Joseph TV: Internet and Facebook first, so they always make the shelf, with colors instead of the plain grey tile.
+    ['internet', /^org\.tizen\.browser$|app\.browser/, /^(internet|web browser)$/i, ['#2D8CFF', '#0B47B8']],
+    ['facebook', /facebook/i, /facebook/i, ['#1877F2', '#0A3F9E']],
     ['netflix', /^netflix$/, /netflix/i, ['#0A0A0A', '#000000']],
     ['youtube', /youtube/, /^youtube$/i, ['#1C1C1E', '#09090A']],
     ['prime', /^amazon$/, /prime video|amazon/i, ['#2AA8FF', '#0A68D4']],
@@ -119,10 +122,7 @@
     ['nfl', /nfl/, /^nfl/i, ['#013369', '#00163D']],
     ['globoplay', /globoplay/, /globoplay/i, ['#FF8A1F', '#FF2D5A']],
     ['jellyfin', /jellyfin/i, /jellyfin/i, ['#AA5CC3', '#00A4DC']],
-    ['spotify', /spotify/, /spotify/i, ['#1DB954', '#0F7A36']],
-    // Joseph TV: colors instead of the plain grey tile.
-    ['internet', /^org\.tizen\.browser$|app\.browser/, /^(internet|web browser)$/i, ['#2D8CFF', '#0B47B8']],
-    ['facebook', /facebook/i, /facebook/i, ['#1877F2', '#0A3F9E']]
+    ['spotify', /spotify/, /spotify/i, ['#1DB954', '#0F7A36']]
   ];
   // Apps shown at once, as on Android: 8 (today's smallest tiles, 178 wide); the shelf scrolls for the rest. The
   // built-in list keeps 8 too.
