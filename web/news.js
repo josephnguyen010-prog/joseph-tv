@@ -220,10 +220,13 @@ var News = (function () {
 
   /** Loads every section that is older than FRESH; changed() runs after each one arrives. */
   function refresh(changed) {
-    var now = new Date().getTime();
+    var now = new Date().getTime(), fromStore = false;
     FEEDS.forEach(function (feed) {
-      var have = sections[feed.key] || stored(feed.key);
-      if (have) sections[feed.key] = have;
+      if (!sections[feed.key]) {
+        var kept = stored(feed.key);
+        if (kept) { sections[feed.key] = kept; fromStore = true; }
+      }
+      var have = sections[feed.key];
       var fresh = feed.fresh ? feed.fresh(have && have.items) : FRESH;
       if (have && have.items && have.at && now - have.at < fresh) return;   // an empty scoreboard counts too
       fetchFeed(feed, function (items) {
@@ -237,6 +240,9 @@ var News = (function () {
         if (changed) changed();
       });
     });
+    // Headlines kept from the last half hour show right away: without this the rows waited for a fetch that, being
+    // fresh, never came, and said "Loading" until the half hour was up.
+    if (fromStore && changed) changed();
   }
 
   /** [{key, title, items, failed}] in the page's order. */
