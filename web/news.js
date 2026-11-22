@@ -96,6 +96,15 @@ var News = (function () {
     return m ? m[1].replace(/&amp;/g, '&') : '';
   }
 
+  /**
+   * A picture's address from a feed, only if it's a plain https one: it goes into CSS (url(...)) and img src, so
+   * quotes, brackets, spaces and other schemes are refused rather than escaped. http becomes https.
+   */
+  function safeImage(url) {
+    url = String(url || '').replace(/^http:\/\//, 'https://');
+    return /^https:\/\/[^\s"'()<>\\]+$/.test(url) ? url : '';
+  }
+
   function parse(feed, xml) {
     var doc = new DOMParser().parseFromString(xml, 'text/xml');
     var items = doc.getElementsByTagName('item'), out = [];
@@ -107,7 +116,7 @@ var News = (function () {
       if (feed.keep && !feed.keep(link)) continue;
       var date = Date.parse(text(items[i].getElementsByTagName('pubDate')[0]));
       var image = (raws.length === items.length ? pictureFromText(raws[i]) : '') || picture(items[i]);
-      out.push({title: title, link: link, image: image.replace(/^http:/, 'https:'),
+      out.push({title: title, link: link, image: safeImage(image),
         source: feed.source, at: isNaN(date) ? 0 : date});
     }
     return out;
@@ -138,7 +147,7 @@ var News = (function () {
       for (var j = 0; j < (c.competitors || []).length; j++) {
         var t = c.competitors[j], team = t.team || {};
         teams.push({side: t.homeAway, abbr: team.abbreviation || '', name: team.shortDisplayName || team.name || '',
-          score: t.score || '0', logo: (team.logo || '').replace(/^http:/, 'https:'), winner: !!t.winner});
+          score: t.score || '0', logo: safeImage(team.logo), winner: !!t.winner});
       }
       teams.sort(function (a, b) { return a.side === 'away' ? -1 : b.side === 'away' ? 1 : 0; });   // away on top
       var channel = '';
