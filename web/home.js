@@ -556,21 +556,21 @@
   // MARK: - Picks and background
 
   /**
-   * Joseph TV: without movie picks (no TMDB key), the big cards show the news instead: the newest stories of each
-   * section in turn (football, politics, Vietnam, football, ...), up to 12. OK opens one in the Internet app.
+   * Joseph TV: without movie picks (no TMDB key), the big cards show the news instead, up to 12: every other one
+   * politics, between the sports in turn (politics, football, politics, basketball, politics, baseball, ...).
+   * OK opens one in the Internet app. The NFL scores stay on the News page.
    */
+  var CARD_ORDER = ['politics', 'football', 'politics', 'basketball', 'politics', 'baseball'];
+
   function newsPicks() {
-    var sections = News.list(), out = [], round = 0, added = true;
-    while (added && out.length < 12) {
-      added = false;
-      for (var s = 0; s < sections.length && out.length < 12; s++) {
-        var item = sections[s].items[round];
-        if (!item || item.game) continue;   // the NFL scores stay on the News page
-        added = true;
-        out.push({id: item.link, news: true, link: item.link, title: item.title, backdrop: item.image, poster: '',
-          meta: sections[s].title + '  ·  ' + item.source + (item.at ? '  ·  ' + News.age(item.at) : '')});
-      }
-      round++;
+    var sections = News.list(), byKey = {}, next = {}, out = [], misses = 0;
+    for (var s = 0; s < sections.length; s++) { byKey[sections[s].key] = sections[s]; next[sections[s].key] = 0; }
+    for (var i = 0; out.length < 12 && misses < CARD_ORDER.length; i++) {
+      var key = CARD_ORDER[i % CARD_ORDER.length], sec = byKey[key], item = sec && sec.items[next[key]++];
+      if (!item || item.game) { misses++; continue; }
+      misses = 0;
+      out.push({id: item.link, news: true, link: item.link, title: item.title, backdrop: item.image, poster: '',
+        meta: sec.title + '  ·  ' + item.source + (item.at ? '  ·  ' + News.age(item.at) : '')});
     }
     return out;
   }

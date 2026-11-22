@@ -13,20 +13,27 @@ var News = (function () {
     {key: 'scores', url: 'https://site.api.espn.com/apis/site/v2/sports/football/nfl/scoreboard', source: 'ESPN',
       parse: function (feed, json) { return parseScores(json); },
       fresh: function (items) { return liveGame(items) ? 2 * 60 * 1000 : 15 * 60 * 1000; }},
+    // Three sources in one section, newest first.
+    {key: 'politics', max: 18, sources: [
+      {url: 'https://abcnews.go.com/abcnews/politicsheadlines', source: 'ABC News'},
+      {url: 'https://rss.politico.com/politics-news.xml', source: 'Politico'},
+      {url: 'https://thehill.com/homenews/feed/', source: 'The Hill'}]},
     {key: 'football', url: 'https://www.cbssports.com/rss/headlines/nfl/', source: 'CBS Sports',
       keep: function (link) { return link.indexOf('/nfl/') >= 0; }},
-    {key: 'politics', url: 'https://abcnews.go.com/abcnews/politicsheadlines', source: 'ABC News'},
-    {key: 'vietnam', url: 'https://e.vnexpress.net/rss/news.rss', source: 'VnExpress'}
+    {key: 'basketball', url: 'https://www.cbssports.com/rss/headlines/nba/', source: 'CBS Sports',
+      keep: function (link) { return link.indexOf('/nba/') >= 0; }},
+    {key: 'baseball', url: 'https://www.cbssports.com/rss/headlines/mlb/', source: 'CBS Sports',
+      keep: function (link) { return link.indexOf('/mlb/') >= 0; }}
   ];
   var MAX = 10;                       // headlines per section
   var FRESH = 30 * 60 * 1000;         // fetch again after 30 minutes
 
   /** Section names, in English and Vietnamese (the language button switches between them). */
   var WORDS = {
-    en: {news: 'News', scores: 'NFL Scores', live: 'LIVE', final: 'Final', halftime: 'Halftime', football: 'American Football', politics: 'US Politics', vietnam: 'Vietnam',
+    en: {news: 'News', scores: 'NFL Scores', live: 'LIVE', final: 'Final', halftime: 'Halftime', football: 'American Football', basketball: 'Basketball', baseball: 'Baseball', politics: 'US Politics',
       loading: 'Loading headlines…', failed: 'Couldn’t load the news. Check the internet connection.',
       hint: 'OK opens the story in the Internet app. Back returns here.', ago: 'ago'},
-    vi: {news: 'Tin tức', scores: 'Tỉ số NFL', live: 'ĐANG ĐẤU', final: 'Kết thúc', halftime: 'Nghỉ giữa hiệp', football: 'Bóng bầu dục Mỹ', politics: 'Chính trị Mỹ', vietnam: 'Việt Nam',
+    vi: {news: 'Tin tức', scores: 'Tỉ số NFL', live: 'ĐANG ĐẤU', final: 'Kết thúc', halftime: 'Nghỉ giữa hiệp', football: 'Bóng bầu dục Mỹ', basketball: 'Bóng rổ', baseball: 'Bóng chày', politics: 'Chính trị Mỹ',
       loading: 'Đang tải tin…', failed: 'Không tải được tin. Hãy kiểm tra kết nối mạng.',
       hint: 'Nhấn OK để đọc bài trong ứng dụng Internet. Nhấn Back để quay lại.', ago: 'trước'}
   };
@@ -38,8 +45,8 @@ var News = (function () {
 
   var sections = {};   // key -> {items: [...], at: time, failed: bool}
 
-  function stored(key) { try { return JSON.parse(localStorage.getItem('jtv.news2.' + key)); } catch (e) { return null; } }
-  function store(key, value) { try { localStorage.setItem('jtv.news2.' + key, JSON.stringify(value)); } catch (e) {} }
+  function stored(key) { try { return JSON.parse(localStorage.getItem('jtv.news3.' + key)); } catch (e) { return null; } }
+  function store(key, value) { try { localStorage.setItem('jtv.news3.' + key, JSON.stringify(value)); } catch (e) {} }
 
   function text(node) { return node ? (node.textContent || '').replace(/\s+/g, ' ').replace(/^ | $/g, '') : ''; }
 
@@ -148,6 +155,26 @@ var News = (function () {
   }
 
   function fetchFeed(feed, done) {
+    if (!feed.sources) { fetchOne(feed, done); return; }
+    var left = feed.sources.length, all = [];
+    feed.sources.forEach(function (src) {
+      fetchOne({url: src.url, source: src.source, keep: feed.keep}, function (items) {
+        if (items) all = all.concat(items);
+        if (--left) return;
+        all.sort(function (a, b) { return b.at - a.at; });
+        var seen = {}, out = [];
+        for (var i = 0; i < all.length && out.length < (feed.max || MAX); i++) {
+          var key = all[i].title.toLowerCase().replace(/[^a-z0-9]/g, '').slice(0, 40);
+          if (seen[key]) continue;
+          seen[key] = true;
+          out.push(all[i]);
+        }
+        done(out.length ? out : null);
+      });
+    });
+  }
+
+  function fetchOne(feed, done) {
     var x = new XMLHttpRequest(), over = false;
     x.open('GET', feed.url, true);
     x.timeout = 15000;
@@ -171,9 +198,10 @@ var News = (function () {
     politics: ['Senate passes spending bill ahead of deadline', 'White House outlines new trade plan',
       'Governors meet to discuss disaster funding', 'Supreme Court to hear major election case',
       'What to know about next week in Congress'],
-    vietnam: ['Hanoi metro line carries record passengers', 'Vietnam exports rise for fifth straight month',
-      'New expressway links Ho Chi Minh City to Mekong Delta', 'Da Nang named top Asian travel spot',
-      'Long Thanh airport road widens to 10 lanes']
+    basketball: ['Curry scores 40 in comeback win', 'NBA power rankings: early-season surprises',
+      'Lakers trade talks heat up', 'Rookie of the Year race: who leads?', 'How to watch tonight’s NBA games'],
+    baseball: ['Hot stove: top free agents still available', 'Yankees eye starting pitching upgrade',
+      'Hall of Fame ballot announced', 'Winter meetings preview', 'Which teams will spend big this offseason?']
   };
 
   function samples(key) {
