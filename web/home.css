@@ -496,6 +496,11 @@ button { font: inherit; color: inherit; background: none; border: 0; padding: 0;
    them keeps the text readable (the night look gives light text). The screensaver shows each one whole. */
 #sky .fam { position: absolute; left: 0; top: 0; width: 100%; height: 100%; background-size: contain, cover; background-repeat: no-repeat, no-repeat; background-position: center, center; background-color: #000; opacity: 0; -webkit-transition: opacity 2.5s; transition: opacity 2.5s; }
 #sky .fam.on { opacity: 1; }
+/* Each picture on its own layer: an old TV (WebKit 538) otherwise scales every photo again at each press. Measured on
+   a 2017 UN50MU6070 through the Web Inspector: moves along the news rows took 150-770 ms, with these 17-35 ms. */
+#sky .fam, #sky .veil, .newsrows .pic { -webkit-transform: translateZ(0); transform: translateZ(0); }
+/* lite turns transitions off; the photos' fade stays, cheap on its layer. */
+.lite #sky .fam { -webkit-transition: opacity 2.5s !important; transition: opacity 2.5s !important; }
 .family-bg #sky .veil { background: rgba(0, 0, 0, 0.18); -webkit-transition: background-color 0.4s; transition: background-color 0.4s; }
 .family-bg.news-on #sky .veil { background: rgba(0, 0, 0, 0.62); }
 /* The news cards stay hidden over the photo until the focus goes up to them. */

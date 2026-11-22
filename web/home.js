@@ -1154,7 +1154,7 @@
         if (!sec.loaded) row.loading = true;
         if (!sec.failed) row.failed = false;
       }
-      row.items = row.items.slice(0, 24);
+      row.items = row.items.slice(0, 15);   // 15 cards a row: each picture is a layer (home.css), and old TVs have little memory
       belowRows.push(row);
       var box = el('div', 'section', holder);
       box.style.top = (BELOW_TOP + s * NEWS_SECTION) + 'px';

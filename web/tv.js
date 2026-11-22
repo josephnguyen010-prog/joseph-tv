@@ -24,7 +24,10 @@ var TV = (function () {
   // webOS 1 to 3 (2014-2017, Chromium 38) have no deviceMemory, and their sets have 1 to 1.5 GB: lite too.
   var chrome = /Chrome\/(\d+)/.exec(navigator.userAgent);
   var oldWebos = webos && !navigator.deviceMemory && chrome && parseInt(chrome[1], 10) < 53;
-  if (tizen2 || oldWebos || ((webos || samsung) && lowMemory)) {
+  // Joseph TV: a 2017 UN50MU6070 (Tizen 3) runs the same WebKit 538 as Tizen 2 and has no deviceMemory: measured
+  // through the Web Inspector, 19 presses ran at 32 fps with 31 frames over 50 ms; with lite, 45 fps and 19.
+  var webkit538 = samsung && /AppleWebKit\/538\./.test(navigator.userAgent);
+  if (tizen2 || webkit538 || oldWebos || ((webos || samsung) && lowMemory)) {
     // webOS 3 on a 4K set (UH6150) re-rasterized ~300 ms of tiles at each move; with each tile and pick on its own
     // compositor layer that fell to ~8 ms, and the focus can animate again (`layered` in home.css).
     document.documentElement.className += oldWebos ? ' lite layered' : ' lite';
