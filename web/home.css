@@ -501,9 +501,14 @@ button { font: inherit; color: inherit; background: none; border: 0; padding: 0;
 /* The news cards stay hidden over the photo until the focus goes up to them. */
 .family-bg #cards { opacity: 0; -webkit-transition: opacity 0.35s, -webkit-transform 0.32s cubic-bezier(0.2, 0.9, 0.3, 1); transition: opacity 0.35s, transform 0.32s cubic-bezier(0.2, 0.9, 0.3, 1); }
 .family-bg.news-on #cards { opacity: 1; }
-#newshint { display: none; position: absolute; left: 80px; top: 752px; padding: 8px 20px; border-radius: 24px; background: rgba(0, 0, 0, 0.45); font-size: 26px; font-weight: 700; color: #FFF; }
+#newshint { display: none; position: absolute; left: 80px; top: 1026px; padding: 8px 20px; border-radius: 24px; background: rgba(0, 0, 0, 0.45); font-size: 26px; font-weight: 700; color: #FFF; }
 .family-bg.news-ready #newshint { display: block; }
-.family-bg.news-on #newshint, .drawer-open #newshint { display: none; }
+.family-bg.news-on #newshint, .below-on #newshint, .drawer-open #newshint { display: none; }
+.family-bg.below-on #sky .veil { background: rgba(0, 0, 0, 0.72); }
+.family-bg #clock { display: none !important; }   /* the photo, not a big clock, when the TV opens */
+#below { position: absolute; left: 0; top: 0; width: 1920px; height: 1px; }
+#below .section { opacity: 0.6; }
+#below .section.current { opacity: 1; }
 .family-bg.drawer-open #sky .lift { opacity: 0.5; }
 #saver .photo.whole { background-size: contain; background-repeat: no-repeat; }
 
@@ -513,31 +518,31 @@ button { font: inherit; color: inherit; background: none; border: 0; padding: 0;
 #news .hint { position: absolute; left: 0; right: 0; top: 124px; text-align: center; font-size: 24px; color: rgba(255, 255, 255, 0.55); }
 #news .feed { position: absolute; left: 0; top: 180px; width: 1920px; height: 900px; overflow: hidden; }
 #news .rows { position: absolute; left: 0; top: 0; width: 1920px; -webkit-transition: -webkit-transform 0.3s cubic-bezier(0.2, 0.9, 0.3, 1); transition: transform 0.3s cubic-bezier(0.2, 0.9, 0.3, 1); }
-#news .section { position: absolute; left: 0; width: 1920px; height: 360px; opacity: 0.55; -webkit-transition: opacity 0.2s; transition: opacity 0.2s; }
-#news .section.current { opacity: 1; }
-#news .heading { position: absolute; left: 90px; top: 0; font-size: 38px; font-weight: 800; color: #FFF; }
-#news .line { position: absolute; left: 0; top: 64px; width: 1920px; height: 300px; -webkit-transition: -webkit-transform 0.28s cubic-bezier(0.2, 0.9, 0.3, 1); transition: transform 0.28s cubic-bezier(0.2, 0.9, 0.3, 1); }
-#news .empty { position: absolute; left: 90px; top: 60px; font-size: 30px; color: rgba(255, 255, 255, 0.7); }
-#news .story { position: absolute; top: 0; width: 340px; height: 290px; -webkit-transition: -webkit-transform 0.2s cubic-bezier(0.2, 0.9, 0.3, 1.2); transition: transform 0.2s cubic-bezier(0.2, 0.9, 0.3, 1.2); }
-#news .pic { position: absolute; left: 0; top: 0; width: 340px; height: 170px; border-radius: 16px; overflow: hidden; background-color: #2A2A30; background-size: cover; background-position: center; }
-#news .brand { position: absolute; left: 0; right: 0; top: 64px; text-align: center; font-size: 30px; font-weight: 800; color: rgba(255, 255, 255, 0.5); }
-#news .headline { position: absolute; left: 4px; right: 4px; top: 184px; height: 76px; font-size: 28px; line-height: 38px; font-weight: 600; color: rgba(255, 255, 255, 0.85); overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
-#news .meta { position: absolute; left: 4px; right: 4px; top: 264px; font-size: 20px; color: rgba(255, 255, 255, 0.5); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-#news .story.focus { -webkit-transform: scale(1.07); transform: scale(1.07); z-index: 1; }
-#news .story.focus .pic { box-shadow: 0 0 0 5px #FFD400, 0 18px 36px rgba(0, 0, 0, 0.6); }
-#news .story.focus .headline { color: #FFF; }
-.flat #news .story.focus .pic { box-shadow: 0 0 0 5px #FFD400 !important; }
-.lite #news .story.focus .pic { outline: 5px solid #FFD400; }
+.newsrows .section { position: absolute; left: 0; width: 1920px; height: 360px; opacity: 0.55; -webkit-transition: opacity 0.2s; transition: opacity 0.2s; }
+.newsrows .section.current { opacity: 1; }
+.newsrows .heading { position: absolute; left: 90px; top: 0; font-size: 38px; font-weight: 800; color: #FFF; }
+.newsrows .line { position: absolute; left: 0; top: 64px; width: 1920px; height: 300px; -webkit-transition: -webkit-transform 0.28s cubic-bezier(0.2, 0.9, 0.3, 1); transition: transform 0.28s cubic-bezier(0.2, 0.9, 0.3, 1); }
+.newsrows .empty { position: absolute; left: 90px; top: 60px; font-size: 30px; color: rgba(255, 255, 255, 0.7); }
+.newsrows .story { position: absolute; top: 0; width: 340px; height: 290px; -webkit-transition: -webkit-transform 0.2s cubic-bezier(0.2, 0.9, 0.3, 1.2); transition: transform 0.2s cubic-bezier(0.2, 0.9, 0.3, 1.2); }
+.newsrows .pic { position: absolute; left: 0; top: 0; width: 340px; height: 170px; border-radius: 16px; overflow: hidden; background-color: #2A2A30; background-size: cover; background-position: center; }
+.newsrows .brand { position: absolute; left: 0; right: 0; top: 64px; text-align: center; font-size: 30px; font-weight: 800; color: rgba(255, 255, 255, 0.5); }
+.newsrows .headline { position: absolute; left: 4px; right: 4px; top: 184px; height: 76px; font-size: 28px; line-height: 38px; font-weight: 600; color: rgba(255, 255, 255, 0.85); overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+.newsrows .meta { position: absolute; left: 4px; right: 4px; top: 264px; font-size: 20px; color: rgba(255, 255, 255, 0.5); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.newsrows .story.focus { -webkit-transform: scale(1.07); transform: scale(1.07); z-index: 1; }
+.newsrows .story.focus .pic { box-shadow: 0 0 0 5px #FFD400, 0 18px 36px rgba(0, 0, 0, 0.6); }
+.newsrows .story.focus .headline { color: #FFF; }
+.flat .newsrows .story.focus .pic { box-shadow: 0 0 0 5px #FFD400 !important; }
+.lite .newsrows .story.focus .pic { outline: 5px solid #FFD400; }   /* .lite drops every shadow, the yellow ring too */
 /* Joseph TV: NFL score cards: two team rows on a dark board, the status line below; live games get a red status. */
-#news .board { background: #1E1E24; }
-#news .team { position: absolute; left: 18px; right: 18px; height: 60px; }
-#news .team .logo { position: absolute; left: 0; top: 4px; width: 52px; height: 52px; }
-#news .team .abbr { position: absolute; left: 66px; top: 10px; right: 76px; font-size: 30px; font-weight: 700; color: rgba(255, 255, 255, 0.85); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-#news .team .score { position: absolute; right: 0; top: 4px; font-size: 40px; font-weight: 800; color: #FFF; }
-#news .game.post .team .abbr, #news .game.post .team .score { color: rgba(255, 255, 255, 0.5); }
-#news .game.post .team.won .abbr, #news .game.post .team.won .score { color: #FFF; }
-#news .game .status { height: 40px; font-size: 26px; color: rgba(255, 255, 255, 0.75); }
-#news .game.in .status { color: #FF5A5F; font-weight: 800; }   /* .lite drops every shadow, the yellow ring too */
+.newsrows .board { background: #1E1E24; }
+.newsrows .team { position: absolute; left: 18px; right: 18px; height: 60px; }
+.newsrows .team .logo { position: absolute; left: 0; top: 4px; width: 52px; height: 52px; }
+.newsrows .team .abbr { position: absolute; left: 66px; top: 10px; right: 76px; font-size: 30px; font-weight: 700; color: rgba(255, 255, 255, 0.85); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.newsrows .team .score { position: absolute; right: 0; top: 4px; font-size: 40px; font-weight: 800; color: #FFF; }
+.newsrows .game.post .team .abbr, .newsrows .game.post .team .score { color: rgba(255, 255, 255, 0.5); }
+.newsrows .game.post .team.won .abbr, .newsrows .game.post .team.won .score { color: #FFF; }
+.newsrows .game .status { height: 40px; font-size: 26px; color: rgba(255, 255, 255, 0.75); }
+.newsrows .game.in .status { color: #FF5A5F; font-weight: 800; }
 
 #apps .grid { position: absolute; left: 0; top: 0; width: 1920px; -webkit-transition: -webkit-transform 0.28s cubic-bezier(0.2, 0.9, 0.3, 1); transition: transform 0.28s cubic-bezier(0.2, 0.9, 0.3, 1); }
 .cell { position: absolute; width: 300px; height: 169px; }

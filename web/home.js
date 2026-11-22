@@ -419,8 +419,8 @@
 
   // MARK: - Focus
 
-  var Z = {TOP: 'top', CARDS: 'cards', SHELF: 'shelf', DRAWER: 'drawer', APPS: 'apps', NEWS: 'news', SETTINGS: 'settings', EDIT: 'edit', LANG: 'lang', CITY: 'city', KEY: 'key', ABOUT: 'about'};
-  var st = {zone: Z.SHELF, top: 0, tab: 0, card: 0, shelf: 0, drawer: 0, grid: 0, nsec: 0, row: 0, edit: 0, lang: 0, city: 0, key: 0};
+  var Z = {TOP: 'top', CARDS: 'cards', SHELF: 'shelf', DRAWER: 'drawer', APPS: 'apps', NEWS: 'news', BELOW: 'below', SETTINGS: 'settings', EDIT: 'edit', LANG: 'lang', CITY: 'city', KEY: 'key', ABOUT: 'about'};
+  var st = {zone: Z.SHELF, top: 0, tab: 0, card: 0, shelf: 0, drawer: 0, grid: 0, nsec: 0, bsec: 0, row: 0, edit: 0, lang: 0, city: 0, key: 0};
   var cards = [];
 
   function sheetOpen() { return st.zone === Z.NEWS || st.zone === Z.APPS || st.zone === Z.SETTINGS || st.zone === Z.EDIT || st.zone === Z.LANG || st.zone === Z.CITY || st.zone === Z.KEY || st.zone === Z.ABOUT; }
@@ -457,8 +457,8 @@
     setClass(body, 'drawer-open', st.zone === Z.DRAWER);
     // Joseph TV: over the family photos the news cards show only while the focus is on them; a hint says Up.
     setClass(body, 'news-on', st.zone === Z.CARDS);
-    setClass(body, 'news-ready', cards.length > 0);
-    $('newshint').textContent = '▲  ' + News.word('news');
+    focusBelow();
+    $('newshint').textContent = '\u25BC  ' + News.word('news') + '  \u00B7  NFL  \u00B7  NBA  \u00B7  MLB';
     followSoon();
   }
 
@@ -581,7 +581,7 @@
 
   function renderCards() {
     var list = Data.picks(TAB_KIND[st.tab]);
-    if (!list.length) list = newsPicks();
+    if (!list.length && !familyPhotos().length) list = newsPicks();   // Joseph TV: with photos, the news is below
     var holder = $('cards');
     setClass(body, 'no-picks', !list.length);
     setClass(body, 'no-key', !Data.hasKey());   // as on Android: no title or tabs that could never show anything
@@ -984,7 +984,7 @@
     var holder = sheet.querySelector('.feed');
     holder.innerHTML = '';
     newsSections = News.list();
-    var rows = el('div', 'rows', holder);
+    var rows = el('div', 'rows newsrows', holder);
     for (var s = 0; s < newsSections.length; s++) {
       var sec = newsSections[s], box = el('div', 'section', rows);
       box.style.top = (20 + s * NEWS_SECTION) + 'px';
@@ -994,21 +994,26 @@
         el('div', 'empty', line, sec.failed ? News.word('failed') : News.word('loading'));
         continue;
       }
-      for (var i = 0; i < sec.items.length; i++) newsCard(sec.items[i], line, s, i);
+      for (var i = 0; i < sec.items.length; i++) newsCard(sec.items[i], line, i, newsFocus(s, i));
     }
     focusNews();
   }
 
-  function newsCard(item, line, s, i) {
-    var card = el('div', 'story' + (item.game ? ' game ' + item.state : ''), line);
-    startAt(card, 90 + i * NEWS_CARD);
-    card.onmouseover = function () {
-      if (st.zone !== Z.NEWS) return;
+  function newsFocus(s, i) {
+    return function () {
+      if (st.zone !== Z.NEWS) return false;
       st.nsec = s;
       newsAt[s] = i;
-      updateFocus();
+      return true;
     };
-    card.onclick = function () { card.onmouseover(); activate(); };
+  }
+
+  /** A story or a game card; focus() moves the focus to it (pointer) and says whether it could. */
+  function newsCard(item, line, i, focus) {
+    var card = el('div', 'story' + (item.game ? ' game ' + item.state : ''), line);
+    startAt(card, 90 + i * NEWS_CARD);
+    card.onmouseover = function () { if (focus()) updateFocus(); };
+    card.onclick = function () { if (focus()) { updateFocus(); activate(); } };
     if (item.game) { gameCard(item, card); return; }
     var pic = el('div', 'pic', card);
     if (item.image) pic.style.backgroundImage = 'url("' + item.image.replace(/"/g, '%22') + '")';
@@ -1061,6 +1066,7 @@
   /** A news section arrived: the home screen's cards (when they show news) and the News page, if open. */
   function newsArrived() {
     renderCards();
+    renderBelow();
     if ($('news').className.indexOf('open') >= 0) renderNews();
   }
 
@@ -1074,6 +1080,93 @@
 
   function openStory() {
     var sec = newsSections[st.nsec], item = sec && sec.items[newsAt[st.nsec] || 0];
+    if (item) TV.openUrl(item.link);
+  }
+
+  // MARK: - Below the apps (Joseph TV)
+
+  /*
+   * Under the apps: News (politics), then NFL, NBA and MLB, each its scores first and then its headlines. Down from the
+   * apps slides the whole home screen up to them, Up and Down move between the rows (Up from the first goes back to
+   * the apps), Left and Right along one, OK opens the story or the game in the Internet app.
+   */
+  var BELOW_ROWS = [
+    {name: function () { return News.word('news'); }, keys: ['politics']},
+    {name: function () { return 'NFL'; }, keys: ['scores', 'football']},
+    {name: function () { return 'NBA'; }, keys: ['nbascores', 'basketball']},
+    {name: function () { return 'MLB'; }, keys: ['mlbscores', 'baseball']}
+  ];
+  var BELOW_TOP = 1110, belowRows = [], belowAt = [];
+
+  function renderBelow() {
+    var holder = $('below'), byKey = {}, list = News.list(), any = false;
+    for (var k = 0; k < list.length; k++) byKey[list[k].key] = list[k];
+    holder.innerHTML = '';
+    belowRows = [];
+    for (var s = 0; s < BELOW_ROWS.length; s++) {
+      var row = {title: BELOW_ROWS[s].name(), items: [], loading: false, failed: true};
+      for (var j = 0; j < BELOW_ROWS[s].keys.length; j++) {
+        var sec = byKey[BELOW_ROWS[s].keys[j]];
+        if (!sec) continue;
+        row.items = row.items.concat(sec.items);
+        if (!sec.loaded) row.loading = true;
+        if (!sec.failed) row.failed = false;
+      }
+      row.items = row.items.slice(0, 24);
+      belowRows.push(row);
+      var box = el('div', 'section', holder);
+      box.style.top = (BELOW_TOP + s * NEWS_SECTION) + 'px';
+      el('div', 'heading', box, row.title);
+      var line = el('div', 'line', box);
+      if (!row.items.length) {
+        el('div', 'empty', line, row.loading || !row.failed ? News.word('loading') : News.word('failed'));
+        continue;
+      }
+      any = true;
+      for (var i = 0; i < row.items.length; i++) newsCard(row.items[i], line, i, belowFocus(s, i));
+    }
+    setClass(body, 'news-ready', any);
+    focusBelow();
+  }
+
+  function belowFocus(s, i) {
+    return function () {
+      if (sheetOpen() || st.zone === Z.DRAWER) return false;
+      st.zone = Z.BELOW;
+      st.bsec = s;
+      belowAt[s] = i;
+      return true;
+    };
+  }
+
+  function focusBelow() {
+    var rows = $('below').children, on = st.zone === Z.BELOW;
+    for (var s = 0; s < rows.length; s++) {
+      var cards = rows[s].querySelectorAll('.story'), at = belowAt[s] || 0;
+      for (var i = 0; i < cards.length; i++) setClass(cards[i], 'focus', on && s === st.bsec && i === at);
+      setClass(rows[s], 'current', on && s === st.bsec);
+      var shift = Math.max(0, Math.min(cards.length - 5, at - 2)) * NEWS_CARD;
+      var line = rows[s].querySelector('.line');
+      line.style.webkitTransform = line.style.transform = 'translateX(' + (rtl ? shift : -shift) + 'px)';
+    }
+    // The focused row sits 380 px from the top: the first one leaves the apps in view above it.
+    var y = on ? 'translateY(' + (-(BELOW_TOP - 380 + st.bsec * NEWS_SECTION)) + 'px)' : '';
+    var home = $('home');
+    home.style.webkitTransform = home.style.transform = y;   // '' leaves the drawer's own slide to the CSS
+    setClass(body, 'below-on', on);
+  }
+
+  function moveBelow(dx, dy) {
+    if (dy < 0 && st.bsec === 0) { st.zone = Z.SHELF; return; }
+    if (dy) st.bsec = Math.max(0, Math.min(belowRows.length - 1, st.bsec + dy));
+    else if (dx && belowRows[st.bsec]) {
+      var count = belowRows[st.bsec].items.length;
+      belowAt[st.bsec] = Math.max(0, Math.min(count - 1, (belowAt[st.bsec] || 0) + dx));
+    }
+  }
+
+  function openBelow() {
+    var row = belowRows[st.bsec], item = row && row.items[belowAt[st.bsec] || 0];
     if (item) TV.openUrl(item.link);
   }
 
@@ -1787,6 +1880,9 @@
       case Z.NEWS:
         openStory();
         return;
+      case Z.BELOW:
+        openBelow();
+        return;
       case Z.APPS:
         if (others[st.grid]) launcher(others[st.grid].id, others[st.grid].title)();
         return;
@@ -1833,7 +1929,10 @@
     switch (st.zone) {
       case Z.SHELF:
         if (dx) st.shelf = Math.max(0, Math.min(shelf.length - 1, st.shelf + dx));
-        else if (dy > 0) { openDrawer(); return; }
+        else if (dy > 0) {
+          if (familyPhotos().length && belowRows.length) { st.zone = Z.BELOW; }   // Joseph TV: the news under the apps
+          else { openDrawer(); return; }
+        }
         else if (dy < 0) {
           if (cards.length) { st.zone = Z.CARDS; st.card = nearest(cardNodes, centerX(tiles[st.shelf])); }
           else { st.zone = Z.TOP; st.top = Data.hasKey() ? st.tab : TOP_NEWS; }   // Joseph TV: land on News, so Up then OK never switches the language
@@ -1859,6 +1958,9 @@
         break;
       case Z.NEWS:
         moveNews(dx, dy);
+        break;
+      case Z.BELOW:
+        moveBelow(dx, dy);
         break;
       case Z.APPS:
         var g = st.grid + dx + dy * 5;
@@ -1903,6 +2005,7 @@
     if (st.zone === Z.CITY) { closeCities(false); return; }
     if (st.zone === Z.KEY) { if (keyAsking) askRemoveKey(false); else closeKey(); return; }
     if (st.zone === Z.ABOUT) { closeAbout(); return; }
+    if (st.zone === Z.BELOW) { st.zone = Z.SHELF; updateFocus(); return; }   // Joseph TV: back up to the apps
     if (sheetOpen()) { closeSheets(); return; }
     if (st.zone === Z.DRAWER) { closeDrawer(); return; }
     if (st.zone !== Z.SHELF && shelf.length) { st.zone = Z.SHELF; updateFocus(); return; }
@@ -2127,6 +2230,7 @@
     renderTop();
     renderQuotes();
     renderFamily();   // Joseph TV
+    renderBelow();
     cards = [];
     renderCards();
     renderShelf();

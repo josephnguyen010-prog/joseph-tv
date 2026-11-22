@@ -13,6 +13,12 @@ var News = (function () {
     {key: 'scores', url: 'https://site.api.espn.com/apis/site/v2/sports/football/nfl/scoreboard', source: 'ESPN',
       parse: function (feed, json) { return parseScores(json); },
       fresh: function (items) { return liveGame(items) ? 2 * 60 * 1000 : 15 * 60 * 1000; }},
+    {key: 'nbascores', url: 'https://site.api.espn.com/apis/site/v2/sports/basketball/nba/scoreboard', source: 'ESPN',
+      parse: function (feed, json) { return parseScores(json); },
+      fresh: function (items) { return liveGame(items) ? 2 * 60 * 1000 : 15 * 60 * 1000; }},
+    {key: 'mlbscores', url: 'https://site.api.espn.com/apis/site/v2/sports/baseball/mlb/scoreboard', source: 'ESPN',
+      parse: function (feed, json) { return parseScores(json); },
+      fresh: function (items) { return liveGame(items) ? 2 * 60 * 1000 : 30 * 60 * 1000; }},
     // Three sources in one section, newest first.
     {key: 'politics', max: 18, sources: [
       {url: 'https://abcnews.go.com/abcnews/politicsheadlines', source: 'ABC News'},
@@ -30,10 +36,10 @@ var News = (function () {
 
   /** Section names, in English and Vietnamese (the language button switches between them). */
   var WORDS = {
-    en: {news: 'News', scores: 'NFL Scores', live: 'LIVE', final: 'Final', halftime: 'Halftime', football: 'American Football', basketball: 'Basketball', baseball: 'Baseball', politics: 'US Politics',
+    en: {news: 'News', scores: 'NFL Scores', nbascores: 'NBA Scores', mlbscores: 'MLB Scores', live: 'LIVE', final: 'Final', halftime: 'Halftime', football: 'American Football', basketball: 'Basketball', baseball: 'Baseball', politics: 'US Politics',
       loading: 'Loading headlines…', failed: 'Couldn’t load the news. Check the internet connection.',
       hint: 'OK opens the story in the Internet app. Back returns here.', ago: 'ago'},
-    vi: {news: 'Tin tức', scores: 'Tỉ số NFL', live: 'ĐANG ĐẤU', final: 'Kết thúc', halftime: 'Nghỉ giữa hiệp', football: 'Bóng bầu dục Mỹ', basketball: 'Bóng rổ', baseball: 'Bóng chày', politics: 'Chính trị Mỹ',
+    vi: {news: 'Tin tức', scores: 'Tỉ số NFL', nbascores: 'Tỉ số NBA', mlbscores: 'Tỉ số MLB', live: 'ĐANG ĐẤU', final: 'Kết thúc', halftime: 'Nghỉ giữa hiệp', football: 'Bóng bầu dục Mỹ', basketball: 'Bóng rổ', baseball: 'Bóng chày', politics: 'Chính trị Mỹ',
       loading: 'Đang tải tin…', failed: 'Không tải được tin. Hãy kiểm tra kết nối mạng.',
       hint: 'Nhấn OK để đọc bài trong ứng dụng Internet. Nhấn Back để quay lại.', ago: 'trước'}
   };
@@ -184,7 +190,7 @@ var News = (function () {
       if (x.status !== 200) { done(null); return; }
       var items;
       try { items = (feed.parse || parse)(feed, x.responseText); } catch (e) { items = null; }
-      done(items && items.length ? items : null);
+      done(items && (items.length || feed.parse) ? items : null);
     };
     x.ontimeout = x.onerror = function () { if (!over) { over = true; done(null); } };
     try { x.send(); } catch (e) { if (!over) { over = true; done(null); } }
@@ -219,7 +225,7 @@ var News = (function () {
       var have = sections[feed.key] || stored(feed.key);
       if (have) sections[feed.key] = have;
       var fresh = feed.fresh ? feed.fresh(have && have.items) : FRESH;
-      if (have && have.items && have.items.length && now - have.at < fresh) return;
+      if (have && have.items && have.at && now - have.at < fresh) return;   // an empty scoreboard counts too
       fetchFeed(feed, function (items) {
         if (items) {
           sections[feed.key] = {items: items, at: new Date().getTime()};
