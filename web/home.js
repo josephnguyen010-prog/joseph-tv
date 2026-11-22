@@ -974,9 +974,10 @@
     if (!photos.length) return;
     var next = familyFront === 'a' ? 'b' : 'a';
     var front = sky.querySelector('.fam.' + next), back = sky.querySelector('.fam.' + familyFront);
-    var src = photos[familyAt % photos.length].src;
-    front.style.backgroundImage = 'url(' + src + ')';
-    backdrop(src, true);   // the same photo, tiny and stretched: a soft blur filling the sides
+    var photo = photos[familyAt % photos.length];
+    // The photo whole and centered, over its own blurred copy (made on the computer, 16:9, never squashed).
+    front.style.backgroundImage = 'url(' + photo.src + ')' + (photo.bg ? ', url(' + photo.bg + ')' : '');
+    backdrop('', true);   // the old blur (a tiny stretched canvas) stays off
     setClass(front, 'on', true);
     setClass(back, 'on', false);
     familyFront = next;

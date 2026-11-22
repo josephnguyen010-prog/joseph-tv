@@ -13,6 +13,37 @@ Add-Type -AssemblyName PresentationCore
 Add-Type -AssemblyName WindowsBase
 
 $MaxW = 1600; $MaxH = 900; $Limit = 80
+$BgW = 384; $BgH = 216   # the blurred background's size (the TV stretches it 5x; it's soft, so that looks smooth)
+
+# A box blur, three passes (close to a Gaussian), on BGRA pixels; the edges repeat their last pixel.
+Add-Type -Language CSharp @'
+public static class JosephTvBlur {
+    public static void Box(byte[] px, int w, int h, int r, int passes) {
+        byte[] tmp = new byte[px.Length];
+        for (int p = 0; p < passes; p++) {
+            Pass(px, tmp, h, w, r, 4, w * 4);    // along the rows: h lines of w pixels
+            Pass(tmp, px, w, h, r, w * 4, 4);    // along the columns: w lines of h pixels
+        }
+    }
+    // Blurs along lines: n lines of len pixels, step bytes between pixels of a line, lineStep between lines.
+    static void Pass(byte[] src, byte[] dst, int n, int len, int r, int step, int lineStep) {
+        int win = 2 * r + 1;
+        for (int line = 0; line < n; line++) {
+            int start = line * lineStep;
+            for (int c = 0; c < 3; c++) {
+                int sum = 0;
+                for (int i = -r; i <= r; i++) sum += src[start + Clamp(i, len) * step + c];
+                for (int i = 0; i < len; i++) {
+                    dst[start + i * step + c] = (byte)(sum / win);
+                    sum += src[start + Clamp(i + r + 1, len) * step + c] - src[start + Clamp(i - r, len) * step + c];
+                }
+            }
+            for (int i = 0; i < len; i++) dst[start + i * step + 3] = 255;
+        }
+    }
+    static int Clamp(int i, int len) { return i < 0 ? 0 : i >= len ? len - 1 : i; }
+}
+'@
 $Exts = @('.jpg', '.jpeg', '.png', '.bmp', '.gif', '.tif', '.tiff', '.heic', '.heif')
 
 if (Test-Path $Output) { Remove-Item -Recurse -Force $Output }
@@ -67,7 +98,28 @@ foreach ($file in $files) {
             $encoder.Frames.Add([System.Windows.Media.Imaging.BitmapFrame]::Create($bitmap))
             $out = [System.IO.File]::Create((Join-Path $Output $name))
             try { $encoder.Save($out) } finally { $out.Close() }
-            Write-Output ("{0}`t{1}`t{2}" -f $name, $bitmap.PixelWidth, $bitmap.PixelHeight)
+
+            # The background behind it: the same photo cropped to 16:9 (never squashed), small and softly blurred
+            # here, so the TV only stretches an already smooth picture.
+            $bgName = '{0:000}-bg.jpg' -f $n
+            $argb = New-Object System.Windows.Media.Imaging.FormatConvertedBitmap($bitmap, [System.Windows.Media.PixelFormats]::Bgra32, $null, 0)
+            $bw = $argb.PixelWidth; $bh = $argb.PixelHeight
+            if ($bw / $bh -gt 16.0 / 9.0) { $cw = [int]($bh * 16 / 9); $ch = $bh } else { $cw = $bw; $ch = [int]($bw * 9 / 16) }
+            $rect = New-Object System.Windows.Int32Rect([int](($bw - $cw) / 2), [int](($bh - $ch) / 2), $cw, $ch)
+            $crop = New-Object System.Windows.Media.Imaging.CroppedBitmap($argb, $rect)
+            $small = New-Object System.Windows.Media.Imaging.TransformedBitmap($crop, (New-Object System.Windows.Media.ScaleTransform(($BgW / $cw), ($BgH / $ch))))
+            $sw = $small.PixelWidth; $sh = $small.PixelHeight
+            $pixels = New-Object byte[] ($sw * $sh * 4)
+            $small.CopyPixels($pixels, $sw * 4, 0)
+            [JosephTvBlur]::Box($pixels, $sw, $sh, 14, 3)
+            $soft = [System.Windows.Media.Imaging.BitmapSource]::Create($sw, $sh, 96, 96, [System.Windows.Media.PixelFormats]::Bgra32, $null, $pixels, $sw * 4)
+            $bgEncoder = New-Object System.Windows.Media.Imaging.JpegBitmapEncoder
+            $bgEncoder.QualityLevel = 90
+            $bgEncoder.Frames.Add([System.Windows.Media.Imaging.BitmapFrame]::Create($soft))
+            $bgOut = [System.IO.File]::Create((Join-Path $Output $bgName))
+            try { $bgEncoder.Save($bgOut) } finally { $bgOut.Close() }
+
+            Write-Output ("{0}`t{1}`t{2}`t{3}" -f $name, $bitmap.PixelWidth, $bitmap.PixelHeight, $bgName)
         } finally {
             $stream.Close()
         }

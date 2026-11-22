@@ -129,11 +129,13 @@ def files(config, made_by):
             with open(os.path.join(fonts, name), 'rb') as f:
                 out['fonts/' + name] = f.read()
     family = family_photos()
-    for name, data, _, _ in family:
-        out['photos/' + name] = data
+    for p in family:
+        out['photos/' + p['name']] = p['data']
+        out['photos/' + p['bg']] = p['bg_data']
     out['photos.js'] = ('/* Joseph TV: the family photos (family-photos/), shrunk by tools/family_photos.ps1. */\n'
                         'window.FAMILY_PHOTOS = %s;\n'
-                        % json.dumps([{'src': 'photos/' + n, 'w': w, 'h': h} for n, _, w, h in family])).encode('utf-8')
+                        % json.dumps([{'src': 'photos/' + p['name'], 'bg': 'photos/' + p['bg'], 'w': p['w'], 'h': p['h']}
+                                      for p in family])).encode('utf-8')
     return out
 
 
@@ -141,7 +143,8 @@ FAMILY = os.path.join(ROOT, 'family-photos')
 
 
 def family_photos():
-    """Joseph TV: [(name, jpeg bytes, width, height)] from family-photos/, shrunk for the TV; [] without photos.
+    """Joseph TV: [{name, data, w, h, bg, bg_data}] from family-photos/, shrunk for the TV, each with its blurred
+    16:9 background; [] without photos.
     Windows only (tools/family_photos.ps1 uses Windows' own imaging); elsewhere the row stays empty."""
     if not os.path.isdir(FAMILY) or not any(not n.startswith('.') for n in os.listdir(FAMILY)):
         return []
@@ -158,11 +161,14 @@ def family_photos():
     out = []
     for line in run.stdout.splitlines():
         parts = line.strip().split('\t')
-        if len(parts) != 3:
+        if len(parts) != 4:
             continue
         with open(os.path.join(shrunk, parts[0]), 'rb') as f:
-            out.append((parts[0], f.read(), int(parts[1]), int(parts[2])))
-    size = sum(len(d) for _, d, _, _ in out)
+            data = f.read()
+        with open(os.path.join(shrunk, parts[3]), 'rb') as f:
+            bg_data = f.read()
+        out.append({'name': parts[0], 'data': data, 'w': int(parts[1]), 'h': int(parts[2]), 'bg': parts[3], 'bg_data': bg_data})
+    size = sum(len(p['data']) + len(p['bg_data']) for p in out)
     print('Family photos: %d, %.1f MB on the TV.' % (len(out), size / 1048576.0))
     return out
 
