@@ -368,7 +368,21 @@ var TV = (function () {
     }
   }
 
+  // Joseph TV: on a 2017 UN50MU6070 (Tizen 3) the Internet app answers launch() with success and never shows; asked
+  // to view a page (the "view" app control with an address) it opens. So the tile opens it on this page.
+  var BROWSER = 'org.tizen.browser', BROWSER_HOME = 'https://www.google.com';
+
   function samsungLaunch(id, done) {
+    if (id === BROWSER) {
+      try {
+        var page = new window.tizen.ApplicationControl('http://tizen.org/appcontrol/operation/view', BROWSER_HOME, null, null, null);
+        window.tizen.application.launchAppControl(page, BROWSER, function () { if (done) done(true); },
+          function () { if (done) done(false); });
+      } catch (e) {
+        if (done) done(false);
+      }
+      return;
+    }
     var dial = samsungDial[id];
     function launch(otherwise) {
       try {
