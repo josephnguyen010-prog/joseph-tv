@@ -491,9 +491,10 @@ button { font: inherit; color: inherit; background: none; border: 0; padding: 0;
 .sheet.open { opacity: 1; visibility: visible; pointer-events: auto; -webkit-transform: none; transform: none; -webkit-transition-delay: 0s; transition-delay: 0s; }
 .sheet h2 { position: absolute; left: 0; right: 0; top: 84px; margin: 0; text-align: center; font-size: 40px; font-weight: 600; }
 
-/* Joseph TV: the family photos fill the screen behind the home screen, fading from one to the next; the veil over
+/* Joseph TV: the family photos show whole and centered behind the home screen (a blur of the same photo fills the
+   sides: backdrop()), fading from one to the next; the veil over
    them keeps the text readable (the night look gives light text). The screensaver shows each one whole. */
-#sky .fam { position: absolute; left: 0; top: 0; width: 100%; height: 100%; background-size: cover; background-position: center 30%; opacity: 0; -webkit-transition: opacity 2.5s; transition: opacity 2.5s; }
+#sky .fam { position: absolute; left: 0; top: 0; width: 100%; height: 100%; background-size: contain; background-repeat: no-repeat; background-position: center; opacity: 0; -webkit-transition: opacity 2.5s; transition: opacity 2.5s; }
 #sky .fam.on { opacity: 1; }
 .family-bg #sky .veil { background: rgba(0, 0, 0, 0.5); }
 .family-bg.drawer-open #sky .lift { opacity: 0.5; }

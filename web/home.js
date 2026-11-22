@@ -629,7 +629,8 @@
   var bgUrl = null, bgFront = 'bgA';
 
   /** The focused pick's photo as the background: drawn tiny and stretched, it's already as soft as a heavy blur. */
-  function backdrop(url) {
+  function backdrop(url, family) {
+    if (familyPhotos().length && !family) return;   // Joseph TV: the blurred family photo stays behind
     if (url === bgUrl) return;
     bgUrl = url;
     var next = bgFront === 'bgA' ? 'bgB' : 'bgA';
@@ -948,7 +949,9 @@
     if (!photos.length) return;
     var next = familyFront === 'a' ? 'b' : 'a';
     var front = sky.querySelector('.fam.' + next), back = sky.querySelector('.fam.' + familyFront);
-    front.style.backgroundImage = 'url(' + photos[familyAt % photos.length].src + ')';
+    var src = photos[familyAt % photos.length].src;
+    front.style.backgroundImage = 'url(' + src + ')';
+    backdrop(src, true);   // the same photo, tiny and stretched: a soft blur filling the sides
     setClass(front, 'on', true);
     setClass(back, 'on', false);
     familyFront = next;
