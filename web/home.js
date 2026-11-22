@@ -455,6 +455,10 @@
     focusRows($('keypick'), st.key, st.zone === Z.KEY);
     focusNews();
     setClass(body, 'drawer-open', st.zone === Z.DRAWER);
+    // Joseph TV: over the family photos the news cards show only while the focus is on them; a hint says Up.
+    setClass(body, 'news-on', st.zone === Z.CARDS);
+    setClass(body, 'news-ready', cards.length > 0);
+    $('newshint').textContent = '▲  ' + News.word('news');
     followSoon();
   }
 
