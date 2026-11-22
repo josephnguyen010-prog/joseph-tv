@@ -670,6 +670,26 @@
     var d = new Date(), c = $('clock');
     c.firstChild.textContent = formatDate('format|h:mm', d.getTime());
     c.lastChild.textContent = formatDate('format|EEEE, MMMM d', d.getTime());
+    renderGlance();
+  }
+
+  /**
+   * Joseph TV: the time, the date and the weather in the top-left corner, over the family photo (the big clock and the
+   * drawer's weather card are out of sight there).
+   */
+  function renderGlance() {
+    var g = $('glance'), d = new Date();
+    if (!g) return;
+    g.innerHTML = '';
+    el('div', 'time', g, formatDate('format|h:mm', d.getTime()));
+    el('div', 'date', g, formatDate('format|EEEE, MMMM d', d.getTime()));
+    var w = Data.weather;
+    if (!w) return;
+    var now = el('div', 'wx', g);
+    sym(Data.symbol(w.code, w.isDay), now);
+    el('span', 'temp', now, Data.degrees(w.temp));
+    el('span', 'cond', now, Data.condition(w.code, w.isDay));
+    el('div', 'range', g, (Data.city ? Data.city + '   ' : '') + trf('H:{max}', {max: Data.degrees(w.max)}) + '   ' + trf('L:{min}', {min: Data.degrees(w.min)}));
   }
 
   /** On the minute, so the clock never runs late (the 30-second refresh could, by up to 30 s). */
@@ -783,6 +803,7 @@
   }
 
   function renderPanels() {
+    renderGlance();   // Joseph TV: the weather changed, or its units
     var d = $('drawer');
     var old = d.querySelectorAll('.panel');
     for (var o = 0; o < old.length; o++) d.removeChild(old[o]);

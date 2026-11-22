@@ -506,6 +506,16 @@ button { font: inherit; color: inherit; background: none; border: 0; padding: 0;
 .family-bg.news-on #newshint, .below-on #newshint, .drawer-open #newshint { display: none; }
 .family-bg.below-on #sky .veil { background: rgba(0, 0, 0, 0.72); }
 .family-bg #clock { display: none !important; }   /* the photo, not a big clock, when the TV opens */
+/* The time, the date and the weather in the top-left corner, over the photo, with a soft shadow to read on any photo. */
+#glance { display: none; position: absolute; left: 80px; top: 56px; color: #FFF; text-shadow: 0 2px 12px rgba(0, 0, 0, 0.6); }
+.family-bg #glance { display: block; }
+#glance .time { font-size: 96px; font-weight: 300; line-height: 1; letter-spacing: -0.01em; }
+#glance .date { margin-top: 8px; font-size: 32px; font-weight: 600; }
+#glance .wx { margin-top: 18px; height: 52px; white-space: nowrap; }
+#glance .wx .sym { display: inline-block; position: relative; width: 44px; height: 44px; vertical-align: -6px; margin-right: 12px; background: #FFF; }
+#glance .wx .temp { font-size: 44px; font-weight: 600; margin-right: 16px; }
+#glance .wx .cond { font-size: 30px; font-weight: 500; }
+#glance .range { margin-top: 6px; font-size: 24px; font-weight: 500; color: rgba(255, 255, 255, 0.85); }
 #below { position: absolute; left: 0; top: 0; width: 1920px; height: 1px; }
 #below .section { opacity: 0.6; }
 #below .section.current { opacity: 1; }
