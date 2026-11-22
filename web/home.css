@@ -566,6 +566,20 @@ button { font: inherit; color: inherit; background: none; border: 0; padding: 0;
 .newsrows .dtemp { position: absolute; left: 22px; top: 100px; font-size: 48px; font-weight: 700; color: #FFF; white-space: nowrap; }
 .newsrows .dtemp .low { margin-left: 16px; font-size: 32px; font-weight: 500; color: rgba(255, 255, 255, 0.65); }
 .newsrows .drain { color: #8FC8FF; font-size: 22px; }
+/* Joseph TV: weather alerts: red warnings, orange watches, yellow advisories. */
+.newsrows .alert.warning .board { background: #B3171D; }
+.newsrows .alert.watch .board { background: #C25A00; }
+.newsrows .alert.advisory .board { background: #8A6D00; }
+.newsrows .aicon { position: absolute; right: 20px; top: 12px; font-size: 44px; color: #FFF; }
+.newsrows .aname { position: absolute; left: 22px; right: 76px; top: 18px; font-size: 30px; line-height: 36px; font-weight: 800; color: #FFF; max-height: 108px; overflow: hidden; }
+.newsrows .auntil { position: absolute; left: 22px; bottom: 14px; font-size: 24px; font-weight: 600; color: rgba(255, 255, 255, 0.9); }
+#alertbar { display: none; position: absolute; left: 50%; top: 10px; z-index: 7; max-width: 1100px; -webkit-transform: translateX(-50%); transform: translateX(-50%);
+  padding: 8px 28px; border-radius: 26px; font-size: 30px; font-weight: 800; color: #FFF; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.4); }
+#alertbar.on { display: block; }
+#alertbar.warning { background: #D0161E; }
+#alertbar.watch { background: #D96400; }
+#alertbar.advisory { background: #A88400; }
 
 #apps .grid { position: absolute; left: 0; top: 0; width: 1920px; -webkit-transition: -webkit-transform 0.28s cubic-bezier(0.2, 0.9, 0.3, 1); transition: transform 0.28s cubic-bezier(0.2, 0.9, 0.3, 1); }
 .cell { position: absolute; width: 300px; height: 169px; }

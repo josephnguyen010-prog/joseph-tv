@@ -1039,6 +1039,7 @@
     card.onclick = function () { if (focus()) { updateFocus(); activate(); } };
     if (item.game) { gameCard(item, card); return; }
     if (item.day) { dayCard(item, card); return; }
+    if (item.alert) { alertCard(item.alert, card); return; }
     var pic = el('div', 'pic', card);
     if (item.image) pic.style.backgroundImage = 'url("' + item.image.replace(/"/g, '%22') + '")';
     else el('div', 'brand', pic, item.source);
@@ -1076,6 +1077,36 @@
       el('div', 'meta drain', card, (I18N.lang === 'vi' ? 'Khả năng mưa ' : 'Chance of rain ') + x.rain + '%');
     }
   }
+
+  /** Joseph TV: a weather alert: its name and end on its level's color, what it says below. */
+  function alertCard(a, card) {
+    setClass(card, 'alert ' + a.level, true);
+    var board = el('div', 'pic board', card);
+    el('div', 'aicon', board, '\u26A0');
+    el('div', 'aname', board, Alerts.name(a));
+    el('div', 'auntil', board, Alerts.until(a));
+    el('div', 'headline', card, a.instruction || a.text || a.headline);
+    el('div', 'meta', card, I18N.lang === 'vi' ? 'Cơ quan Khí tượng Quốc gia (NWS)' : 'National Weather Service');
+  }
+
+  /** The banner over everything while the Weather Service has an alert for the place: the most serious one. */
+  function renderAlertBar() {
+    var bar = $('alertbar'), alerts = Alerts.list();
+    bar.className = alerts.length ? 'on ' + alerts[0].level : '';
+    if (!alerts.length) { bar.textContent = ''; return; }
+    var a = alerts[0], until = Alerts.until(a);
+    bar.textContent = '\u26A0  ' + Alerts.name(a) + (until ? '  \u00B7  ' + until : '') +
+      (alerts.length > 1 ? '   +' + (alerts.length - 1) : '') + '   \u25BC';
+  }
+
+  /** New alerts: the banner and the row; a new urgent one (a tornado, a flash flood) also wakes the screen. */
+  function alertsChanged(urgent) {
+    renderAlertBar();
+    renderBelow();
+    if (urgent) { idleAt = Date.now(); if (ambientOn) hideAmbient(); if (saverOn) hideSaver(); }
+  }
+
+  function askAlerts() { Alerts.refresh(Prefs.latitude(), Prefs.longitude(), alertsChanged); }
 
   function focusNews() {
     var sheet = $('news');
@@ -1168,9 +1199,12 @@
       for (var i = 0; i < row.items.length; i++) newsCard(row.items[i], line, i, belowFocus(s, i));
     }
     // The week's weather, last: today and the 6 days after it.
-    var week = Data.weather && Data.weather.week, ws = belowRows.length;
-    if (week && week.length) {
+    var week = (Data.weather && Data.weather.week) || [], ws = belowRows.length, alerts = Alerts.list();
+    if (week.length || alerts.length) {
       var wrow = {title: weatherWord() + (Data.city ? '  \u00B7  ' + Data.city : ''), items: []};
+      // The Weather Service's alerts first: OK opens the forecast page for the place on weather.gov.
+      var page = 'https://forecast.weather.gov/MapClick.php?lat=' + (+Prefs.latitude()).toFixed(4) + '&lon=' + (+Prefs.longitude()).toFixed(4);
+      for (var a = 0; a < alerts.length; a++) wrow.items.push({alert: alerts[a], link: page});
       for (var d = 0; d < week.length; d++) wrow.items.push({day: true, at: week[d].at, max: week[d].max, min: week[d].min,
         code: week[d].code, rain: week[d].rain, today: d === 0 && new Date(week[d].at).getDate() === new Date().getDate()});
       belowRows.push(wrow);
@@ -2286,6 +2320,7 @@
     renderQuotes();
     renderFamily();   // Joseph TV
     renderBelow();
+    renderAlertBar();
     cards = [];
     renderCards();
     renderShelf();
@@ -2388,12 +2423,14 @@
     restInDrawer();
     Data.refresh();
     News.refresh(newsArrived);   // Joseph TV: the news cards on the home screen
+    askAlerts();
   });
   setInterval(function () {
     if (resting()) return;
     checkNight();
     Data.refresh();
     News.refresh(newsArrived);   // fetches only sections older than 30 minutes
+    askAlerts();                 // the Weather Service every 5 minutes
     applyDim();   // automatic: medium from 22:00, off again at 07:00
     // Only on screen: behind another app nobody presses our keys, so idleAt grows old and the screensaver would start
     // there, turning photos every 12 s for nothing while Netflix or YouTube plays.
