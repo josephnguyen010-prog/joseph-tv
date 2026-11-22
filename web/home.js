@@ -565,7 +565,7 @@
       added = false;
       for (var s = 0; s < sections.length && out.length < 12; s++) {
         var item = sections[s].items[round];
-        if (!item) continue;
+        if (!item || item.game) continue;   // the NFL scores stay on the News page
         added = true;
         out.push({id: item.link, news: true, link: item.link, title: item.title, backdrop: item.image, poster: '',
           meta: sections[s].title + '  ·  ' + item.source + (item.at ? '  ·  ' + News.age(item.at) : '')});
@@ -996,13 +996,8 @@
   }
 
   function newsCard(item, line, s, i) {
-    var card = el('div', 'story', line);
+    var card = el('div', 'story' + (item.game ? ' game ' + item.state : ''), line);
     startAt(card, 90 + i * NEWS_CARD);
-    var pic = el('div', 'pic', card);
-    if (item.image) pic.style.backgroundImage = 'url("' + item.image.replace(/"/g, '%22') + '")';
-    else el('div', 'brand', pic, item.source);
-    el('div', 'headline', card, item.title);
-    el('div', 'meta', card, item.source + (item.at ? '  ·  ' + News.age(item.at) : ''));
     card.onmouseover = function () {
       if (st.zone !== Z.NEWS) return;
       st.nsec = s;
@@ -1010,6 +1005,25 @@
       updateFocus();
     };
     card.onclick = function () { card.onmouseover(); activate(); };
+    if (item.game) { gameCard(item, card); return; }
+    var pic = el('div', 'pic', card);
+    if (item.image) pic.style.backgroundImage = 'url("' + item.image.replace(/"/g, '%22') + '")';
+    else el('div', 'brand', pic, item.source);
+    el('div', 'headline', card, item.title);
+    el('div', 'meta', card, item.source + (item.at ? '  ·  ' + News.age(item.at) : ''));
+  }
+
+  /** Joseph TV: an NFL game: away team over home team, each with its logo and score, and the status below. */
+  function gameCard(g, card) {
+    var board = el('div', 'pic board', card);
+    for (var t = 0; t < g.teams.length && t < 2; t++) {
+      var team = g.teams[t], row = el('div', 'team' + (g.state === 'post' && team.winner ? ' won' : ''), board);
+      row.style.top = (18 + t * 72) + 'px';
+      if (team.logo) { var logo = el('img', 'logo', row); logo.src = team.logo; logo.onerror = function () { this.style.visibility = 'hidden'; }; }
+      el('span', 'abbr', row, team.name || team.abbr);
+      if (g.state !== 'pre') el('span', 'score', row, team.score);
+    }
+    el('div', 'headline status', card, News.gameStatus(g));
   }
 
   function focusNews() {

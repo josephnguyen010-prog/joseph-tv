@@ -520,7 +520,17 @@ button { font: inherit; color: inherit; background: none; border: 0; padding: 0;
 #news .story.focus .pic { box-shadow: 0 0 0 5px #FFD400, 0 18px 36px rgba(0, 0, 0, 0.6); }
 #news .story.focus .headline { color: #FFF; }
 .flat #news .story.focus .pic { box-shadow: 0 0 0 5px #FFD400 !important; }
-.lite #news .story.focus .pic { outline: 5px solid #FFD400; }   /* .lite drops every shadow, the yellow ring too */
+.lite #news .story.focus .pic { outline: 5px solid #FFD400; }
+/* Joseph TV: NFL score cards: two team rows on a dark board, the status line below; live games get a red status. */
+#news .board { background: #1E1E24; }
+#news .team { position: absolute; left: 18px; right: 18px; height: 60px; }
+#news .team .logo { position: absolute; left: 0; top: 4px; width: 52px; height: 52px; }
+#news .team .abbr { position: absolute; left: 66px; top: 10px; right: 76px; font-size: 30px; font-weight: 700; color: rgba(255, 255, 255, 0.85); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+#news .team .score { position: absolute; right: 0; top: 4px; font-size: 40px; font-weight: 800; color: #FFF; }
+#news .game.post .team .abbr, #news .game.post .team .score { color: rgba(255, 255, 255, 0.5); }
+#news .game.post .team.won .abbr, #news .game.post .team.won .score { color: #FFF; }
+#news .game .status { height: 40px; font-size: 26px; color: rgba(255, 255, 255, 0.75); }
+#news .game.in .status { color: #FF5A5F; font-weight: 800; }   /* .lite drops every shadow, the yellow ring too */
 
 #apps .grid { position: absolute; left: 0; top: 0; width: 1920px; -webkit-transition: -webkit-transform 0.28s cubic-bezier(0.2, 0.9, 0.3, 1); transition: transform 0.28s cubic-bezier(0.2, 0.9, 0.3, 1); }
 .cell { position: absolute; width: 300px; height: 169px; }

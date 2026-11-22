@@ -9,6 +9,10 @@ var News = (function () {
   'use strict';
 
   var FEEDS = [
+    // Joseph TV: this week's NFL games from ESPN's scoreboard (JSON, not RSS): live first, then upcoming, then final.
+    {key: 'scores', url: 'https://site.api.espn.com/apis/site/v2/sports/football/nfl/scoreboard', source: 'ESPN',
+      parse: function (feed, json) { return parseScores(json); },
+      fresh: function (items) { return liveGame(items) ? 2 * 60 * 1000 : 15 * 60 * 1000; }},
     {key: 'football', url: 'https://www.cbssports.com/rss/headlines/nfl/', source: 'CBS Sports',
       keep: function (link) { return link.indexOf('/nfl/') >= 0; }},
     {key: 'politics', url: 'https://abcnews.go.com/abcnews/politicsheadlines', source: 'ABC News'},
@@ -19,10 +23,10 @@ var News = (function () {
 
   /** Section names, in English and Vietnamese (the language button switches between them). */
   var WORDS = {
-    en: {news: 'News', football: 'American Football', politics: 'US Politics', vietnam: 'Vietnam',
+    en: {news: 'News', scores: 'NFL Scores', live: 'LIVE', final: 'Final', halftime: 'Halftime', football: 'American Football', politics: 'US Politics', vietnam: 'Vietnam',
       loading: 'Loading headlines…', failed: 'Couldn’t load the news. Check the internet connection.',
       hint: 'OK opens the story in the Internet app. Back returns here.', ago: 'ago'},
-    vi: {news: 'Tin tức', football: 'Bóng bầu dục Mỹ', politics: 'Chính trị Mỹ', vietnam: 'Việt Nam',
+    vi: {news: 'Tin tức', scores: 'Tỉ số NFL', live: 'ĐANG ĐẤU', final: 'Kết thúc', halftime: 'Nghỉ giữa hiệp', football: 'Bóng bầu dục Mỹ', politics: 'Chính trị Mỹ', vietnam: 'Việt Nam',
       loading: 'Đang tải tin…', failed: 'Không tải được tin. Hãy kiểm tra kết nối mạng.',
       hint: 'Nhấn OK để đọc bài trong ứng dụng Internet. Nhấn Back để quay lại.', ago: 'trước'}
   };
@@ -96,6 +100,53 @@ var News = (function () {
     return out;
   }
 
+  var DAYS = {en: ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'], vi: ['CN', 'T2', 'T3', 'T4', 'T5', 'T6', 'T7']};
+
+  /** "Sun 1:00 PM" (in the TV's time zone; Martinsville is Eastern, like most kickoff times people quote). */
+  function kickoff(at) {
+    var d = new Date(at), h = d.getHours(), m = d.getMinutes();
+    var day = DAYS[(window.I18N && I18N.lang === 'vi') ? 'vi' : 'en'][d.getDay()];
+    return day + ' ' + ((h + 11) % 12 + 1) + ':' + (m < 10 ? '0' : '') + m + (h < 12 ? ' AM' : ' PM');
+  }
+
+  function liveGame(items) {
+    for (var i = 0; i < (items || []).length; i++) if (items[i].state === 'in') return true;
+    return false;
+  }
+
+  /** ESPN's scoreboard -> [{game, state, at, link, teams: [away, home], channel, clock}], live, upcoming, final. */
+  function parseScores(json) {
+    var data = JSON.parse(json), out = [], ORDER = {'in': 0, 'pre': 1, 'post': 2};
+    var events = data.events || [];
+    for (var i = 0; i < events.length; i++) {
+      var e = events[i], c = (e.competitions || [])[0];
+      if (!c) continue;
+      var type = (c.status && c.status.type) || {}, teams = [];
+      for (var j = 0; j < (c.competitors || []).length; j++) {
+        var t = c.competitors[j], team = t.team || {};
+        teams.push({side: t.homeAway, abbr: team.abbreviation || '', name: team.shortDisplayName || team.name || '',
+          score: t.score || '0', logo: (team.logo || '').replace(/^http:/, 'https:'), winner: !!t.winner});
+      }
+      teams.sort(function (a, b) { return a.side === 'away' ? -1 : b.side === 'away' ? 1 : 0; });   // away on top
+      var channel = '';
+      if (c.broadcasts && c.broadcasts[0] && c.broadcasts[0].names) channel = c.broadcasts[0].names.join(', ');
+      var link = '';
+      for (var k = 0; k < (e.links || []).length; k++) if (/^https?:/.test(e.links[k].href || '')) { link = e.links[k].href; break; }
+      out.push({game: true, state: type.state || 'pre', at: Date.parse(e.date) || 0, teams: teams, channel: channel,
+        clock: type.name === 'STATUS_HALFTIME' ? 'halftime' : (type.shortDetail || ''),
+        link: link || 'https://www.espn.com/nfl/scoreboard', title: teams.length === 2 ? teams[0].name + ' @ ' + teams[1].name : (e.name || '')});
+    }
+    out.sort(function (a, b) { return ORDER[a.state] - ORDER[b.state] || (a.state === 'post' ? b.at - a.at : a.at - b.at); });
+    return out.slice(0, 16);
+  }
+
+  /** The line under a game: "LIVE · Q3 5:12", "Sun 1:00 PM · CBS" or "Final". */
+  function gameStatus(g) {
+    if (g.state === 'in') return word('live') + '  ·  ' + (g.clock === 'halftime' ? word('halftime') : g.clock);
+    if (g.state === 'post') return word('final');
+    return kickoff(g.at) + (g.channel ? '  ·  ' + g.channel : '');
+  }
+
   function fetchFeed(feed, done) {
     var x = new XMLHttpRequest(), over = false;
     x.open('GET', feed.url, true);
@@ -105,7 +156,7 @@ var News = (function () {
       over = true;
       if (x.status !== 200) { done(null); return; }
       var items;
-      try { items = parse(feed, x.responseText); } catch (e) { items = null; }
+      try { items = (feed.parse || parse)(feed, x.responseText); } catch (e) { items = null; }
       done(items && items.length ? items : null);
     };
     x.ontimeout = x.onerror = function () { if (!over) { over = true; done(null); } };
@@ -139,13 +190,14 @@ var News = (function () {
     FEEDS.forEach(function (feed) {
       var have = sections[feed.key] || stored(feed.key);
       if (have) sections[feed.key] = have;
-      if (have && have.items && have.items.length && now - have.at < FRESH) return;
+      var fresh = feed.fresh ? feed.fresh(have && have.items) : FRESH;
+      if (have && have.items && have.items.length && now - have.at < fresh) return;
       fetchFeed(feed, function (items) {
         if (items) {
           sections[feed.key] = {items: items, at: new Date().getTime()};
           store(feed.key, sections[feed.key]);
         } else if (!sections[feed.key] || !sections[feed.key].items) {
-          sections[feed.key] = window.TV && TV.name === 'browser'
+          sections[feed.key] = window.TV && TV.name === 'browser' && SAMPLES[feed.key]
             ? {items: samples(feed.key), at: 0} : {items: [], at: 0, failed: true};
         }
         if (changed) changed();
@@ -171,5 +223,5 @@ var News = (function () {
     return Math.round(h / 24) + (vi ? ' ngày ' : ' days ') + word('ago');
   }
 
-  return {refresh: refresh, list: list, word: word, age: age};
+  return {refresh: refresh, list: list, word: word, age: age, gameStatus: gameStatus};
 })();
