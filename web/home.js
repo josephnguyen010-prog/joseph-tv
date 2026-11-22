@@ -804,6 +804,7 @@
 
   function renderPanels() {
     renderGlance();   // Joseph TV: the weather changed, or its units
+    renderBelow();    // and the week's row below the apps
     var d = $('drawer');
     var old = d.querySelectorAll('.panel');
     for (var o = 0; o < old.length; o++) d.removeChild(old[o]);
@@ -1037,6 +1038,7 @@
     card.onmouseover = function () { if (focus()) updateFocus(); };
     card.onclick = function () { if (focus()) { updateFocus(); activate(); } };
     if (item.game) { gameCard(item, card); return; }
+    if (item.day) { dayCard(item, card); return; }
     var pic = el('div', 'pic', card);
     if (item.image) pic.style.backgroundImage = 'url("' + item.image.replace(/"/g, '%22') + '")';
     else el('div', 'brand', pic, item.source);
@@ -1055,6 +1057,24 @@
       if (g.state !== 'pre') el('span', 'score', row, team.score);
     }
     el('div', 'headline status', card, News.gameStatus(g));
+  }
+
+  function weatherWord() { return I18N.lang === 'vi' ? 'Thời tiết' : 'Weather'; }
+
+  /** Joseph TV: a day of the week's weather: the day, its symbol, high and low, the sky, and the chance of rain. */
+  function dayCard(x, card) {
+    setClass(card, 'day', true);
+    var board = el('div', 'pic board sky', card);
+    el('div', 'dname', board, x.today ? (I18N.lang === 'vi' ? 'Hôm nay' : 'Today') : Data.weekday(x.at));
+    el('div', 'ddate', board, formatDate('format|MMMM d', x.at));
+    var icon = sym(Data.symbol(x.code, true), board);
+    icon.className += ' dsym';
+    var hl = el('div', 'dtemp', board, Data.degrees(x.max));
+    el('span', 'low', hl, Data.degrees(x.min));
+    el('div', 'headline dcond', card, Data.condition(x.code, true));
+    if (x.rain !== null && x.rain !== undefined) {
+      el('div', 'meta drain', card, (I18N.lang === 'vi' ? 'Khả năng mưa ' : 'Chance of rain ') + x.rain + '%');
+    }
   }
 
   function focusNews() {
@@ -1147,6 +1167,19 @@
       any = true;
       for (var i = 0; i < row.items.length; i++) newsCard(row.items[i], line, i, belowFocus(s, i));
     }
+    // The week's weather, last: today and the 6 days after it.
+    var week = Data.weather && Data.weather.week, ws = belowRows.length;
+    if (week && week.length) {
+      var wrow = {title: weatherWord() + (Data.city ? '  \u00B7  ' + Data.city : ''), items: []};
+      for (var d = 0; d < week.length; d++) wrow.items.push({day: true, at: week[d].at, max: week[d].max, min: week[d].min,
+        code: week[d].code, rain: week[d].rain, today: d === 0 && new Date(week[d].at).getDate() === new Date().getDate()});
+      belowRows.push(wrow);
+      var wbox = el('div', 'section', holder);
+      wbox.style.top = (BELOW_TOP + ws * NEWS_SECTION) + 'px';
+      el('div', 'heading', wbox, wrow.title);
+      var wline = el('div', 'line', wbox);
+      for (var di = 0; di < wrow.items.length; di++) newsCard(wrow.items[di], wline, di, belowFocus(ws, di));
+    }
     setClass(body, 'news-ready', any);
     focusBelow();
   }
@@ -1189,7 +1222,7 @@
 
   function openBelow() {
     var row = belowRows[st.bsec], item = row && row.items[belowAt[st.bsec] || 0];
-    if (item) TV.openUrl(item.link);
+    if (item && item.link) TV.openUrl(item.link);   // the weather days have nothing to open
   }
 
   function closeSheets() {

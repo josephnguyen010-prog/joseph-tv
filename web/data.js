@@ -189,9 +189,9 @@ var Data = (function () {
   // asking again, and offline too. 14 steps of 15 minutes tell the card whether rain comes in the next two hours, even
   // from a forecast 30 minutes old (where the time zone is off by half an hour, they start up to 45 minutes back).
   var QUERY = '&current=temperature_2m,weather_code,is_day'
-      + '&daily=temperature_2m_max,temperature_2m_min,sunrise,sunset,weather_code,uv_index_max'
+      + '&daily=temperature_2m_max,temperature_2m_min,sunrise,sunset,weather_code,uv_index_max,precipitation_probability_max'
       + '&minutely_15=precipitation,precipitation_probability&forecast_minutely_15=14'
-      + '&hourly=temperature_2m,weather_code,is_day&timezone=auto&forecast_days=6&forecast_hours=48';
+      + '&hourly=temperature_2m,weather_code,is_day&timezone=auto&forecast_days=8&forecast_hours=48';   // Joseph TV: 8 days, for the week row
   var weather = null, weatherAt = 0, fetchingWeather = false;
   (function () {
     var w = stored('weather');
@@ -213,8 +213,16 @@ var Data = (function () {
       temp: o.current.temperature_2m, code: o.current.weather_code, isDay: o.current.is_day !== 0,
       max: dl.temperature_2m_max[0], min: dl.temperature_2m_min[0],
       uv: dl.uv_index_max ? dl.uv_index_max[0] : null,
-      sunrise: localTime(dl.sunrise[0], off), sunset: localTime(dl.sunset[0], off), hours: [], days: []
+      sunrise: localTime(dl.sunrise[0], off), sunset: localTime(dl.sunset[0], off), hours: [], days: [], week: []
     };
+    // Joseph TV: today and the 6 days after it, with the chance of rain, for the weather row below the apps.
+    for (var q = 0; dl.weather_code && q < dl.time.length && w.week.length < 7; q++) {
+      if (localTime(dl.time[q] + 'T23:59', off) <= now) continue;   // a day already over (an old forecast)
+      var qd = dl.time[q].split('-');
+      w.week.push({at: new Date(+qd[0], qd[1] - 1, +qd[2], 12).getTime(), max: dl.temperature_2m_max[q],
+        min: dl.temperature_2m_min[q], code: dl.weather_code[q],
+        rain: dl.precipitation_probability_max ? dl.precipitation_probability_max[q] : null});
+    }
     // The 15-minute steps, [start, rain]: a step counts as rain from a 50% chance or 0.2 mm of it. rainIn reads them at
     // the moment the card is drawn, not when the forecast came.
     var mr = o.minutely_15;
